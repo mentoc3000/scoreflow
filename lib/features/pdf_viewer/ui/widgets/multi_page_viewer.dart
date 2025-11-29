@@ -32,10 +32,7 @@ class _PageVisibilityTracker {
   final int totalPages;
   final int bufferPages;
 
-  _PageVisibilityTracker({
-    required this.totalPages,
-    this.bufferPages = 2,
-  });
+  _PageVisibilityTracker({required this.totalPages, this.bufferPages = 2});
 
   /// Returns set of page numbers that should have links loaded
   Set<int> getVisiblePages(int currentPage) {
@@ -69,6 +66,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
   double _lastPageWidth = 0;
   late _PageVisibilityTracker _visibilityTracker;
   Set<int> _visiblePages = {};
+  final double _gap = 8.0; // Gap between pages
 
   @override
   void initState() {
@@ -99,8 +97,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
   void didUpdateWidget(MultiPageViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    if (oldWidget.currentPage != widget.currentPage &&
-        !_isUpdatingFromExternal) {
+    if (oldWidget.currentPage != widget.currentPage && !_isUpdatingFromExternal) {
       _scrollToPage(widget.currentPage, animate: true);
       _updateVisiblePages(widget.currentPage);
     }
@@ -109,22 +106,17 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
   void _scrollToPage(int pageNumber, {required bool animate}) {
     if (!_scrollController.hasClients || _pageWidth == 0) return;
 
-    // Scroll so that the current page is on the left and next page is on the right
-    // However, use max scroll extent if we're at or near the end
-    final double targetScroll = (pageNumber - 1) * _pageWidth;
+    // Calculate scroll position so current page is on left, next page on right, both centered
+    // Each page position = (page_index * pageWidth) + (page_index * gap)
+    // For page N (1-indexed), we want to scroll to position (N-1) * (pageWidth + gap)
+    final double targetScroll = (pageNumber - 1) * (_pageWidth + _gap);
     final double maxScroll = _scrollController.position.maxScrollExtent;
 
     // Use maxScroll for the last page to show it properly positioned
-    final double clampedScroll = targetScroll >= maxScroll
-        ? maxScroll
-        : targetScroll;
+    final double clampedScroll = targetScroll >= maxScroll ? maxScroll : targetScroll;
 
     if (animate) {
-      _scrollController.animateTo(
-        clampedScroll,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+      _scrollController.animateTo(clampedScroll, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
     } else {
       _scrollController.jumpTo(clampedScroll);
     }
@@ -141,13 +133,12 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
     if ((maxScroll - scrollPosition).abs() < 1.0) {
       newPage = widget.totalPages;
     } else {
-      // Round to nearest page based on scroll position
-      newPage = (scrollPosition / _pageWidth).round() + 1;
+      // Calculate page based on scroll position accounting for gaps
+      // Each page takes up (pageWidth + gap) of horizontal space
+      newPage = (scrollPosition / (_pageWidth + _gap)).round() + 1;
     }
 
-    if (newPage != widget.currentPage &&
-        newPage >= 1 &&
-        newPage <= widget.totalPages) {
+    if (newPage != widget.currentPage && newPage >= 1 && newPage <= widget.totalPages) {
       setState(() {
         _isUpdatingFromExternal = true;
       });
@@ -206,11 +197,8 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             // Calculate page width based on available height and aspect ratio
-            final double availableHeight =
-                constraints.maxHeight - 32; // Account for vertical padding
-            final double pageWidth =
-                availableHeight * (8.5 / 11); // Width based on aspect ratio
-            final double gap = 8.0; // Gap between pages
+            final double availableHeight = constraints.maxHeight - 32; // Account for vertical padding
+            final double pageWidth = availableHeight * (8.5 / 11); // Width based on aspect ratio
 
             // Detect page width change (screen resize) and update scroll position
             if (pageWidth != _lastPageWidth && _lastPageWidth > 0) {
@@ -225,15 +213,16 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
               _pageWidth = pageWidth;
             }
 
+            // Store the left padding for scroll calculations
+            final double leftPadding = (constraints.maxWidth - (2 * pageWidth + _gap)) / 2;
+
             return SingleChildScrollView(
               controller: _scrollController,
               scrollDirection: Axis.horizontal,
               child: Padding(
                 padding: EdgeInsets.only(
-                  left:
-                      (constraints.maxWidth - (2 * pageWidth + gap)) /
-                      2, // Center two pages
-                  right: (constraints.maxWidth - (2 * pageWidth + gap)) / 2,
+                  left: leftPadding, // Center two pages
+                  right: leftPadding,
                   top: 16.0,
                   bottom: 16.0,
                 ),
@@ -255,7 +244,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
                             shouldLoadLinks: shouldLoadLinks,
                           ),
                         ),
-                        if (index < widget.totalPages - 1) SizedBox(width: gap),
+                        if (index < widget.totalPages - 1) SizedBox(width: _gap),
                       ],
                     );
                   }),
