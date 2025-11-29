@@ -238,52 +238,60 @@ class _TabItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: isActive
-          ? Theme.of(context).colorScheme.surface
-          : Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: isActive
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.transparent,
-                width: 2,
+    return Listener(
+      onPointerDown: (PointerDownEvent event) {
+        // Middle mouse button has kMiddleMouseButton = 4
+        if (event.buttons == 4) {
+          onClose();
+        }
+      },
+      child: Material(
+        color: isActive
+            ? Theme.of(context).colorScheme.surface
+            : Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: isActive
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.transparent,
+                  width: 2,
+                ),
               ),
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // File icon
-              const Icon(Icons.description, size: 16),
-              const SizedBox(width: 8),
-              // File name (truncated if too long)
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 150),
-                child: Text(
-                  tab.fileName,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // File icon
+                const Icon(Icons.description, size: 16),
+                const SizedBox(width: 8),
+                // File name (truncated if too long)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 150),
+                  child: Text(
+                    tab.fileName,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              // Close button
-              InkWell(
-                onTap: onClose,
-                borderRadius: BorderRadius.circular(12),
-                child: const Padding(
-                  padding: EdgeInsets.all(2),
-                  child: Icon(Icons.close, size: 16),
+                const SizedBox(width: 8),
+                // Close button
+                InkWell(
+                  onTap: onClose,
+                  borderRadius: BorderRadius.circular(12),
+                  child: const Padding(
+                    padding: EdgeInsets.all(2),
+                    child: Icon(Icons.close, size: 16),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

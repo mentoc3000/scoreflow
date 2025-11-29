@@ -199,9 +199,21 @@ class TabManagerBloc extends Bloc<TabManagerEvent, TabManagerState> {
       // Determine new active tab
       String? newActiveTabId;
       if (updatedTabs.isEmpty) {
-        // No tabs left, go to initial state
-        emit(const TabManagerInitial());
-        await _persistenceRepository.clearTabs();
+        // No tabs left, create a new home tab
+        final DocumentTab homeTab = DocumentTab.home();
+        final Map<String, TabState> newTabStates = {
+          homeTab.id: TabState(tabId: homeTab.id),
+        };
+
+        emit(TabManagerLoaded(
+          tabs: [homeTab],
+          activeTabId: homeTab.id,
+          tabStates: newTabStates,
+        ));
+
+        await _persistenceRepository.saveTabs([homeTab]);
+        await _persistenceRepository.saveTabStates(newTabStates);
+        await _persistenceRepository.saveActiveTabId(homeTab.id);
         return;
       } else if (currentState.activeTabId == event.tabId) {
         // Closed the active tab, switch to the last tab
