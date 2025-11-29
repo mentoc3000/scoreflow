@@ -164,6 +164,11 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
 
   @override
   Widget build(BuildContext context) {
+    // Get the actual page aspect ratio from the first page
+    final double pageAspectRatio = widget.document.pages.isNotEmpty
+        ? widget.document.pages[0].width / widget.document.pages[0].height
+        : 8.5 / 11; // Fallback to standard letter size
+
     // Single page: show centered
     if (widget.totalPages == 1) {
       return Container(
@@ -172,7 +177,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: AspectRatio(
-              aspectRatio: 8.5 / 11,
+              aspectRatio: pageAspectRatio,
               child: PdfPageWidget(
                 document: widget.document,
                 pageNumber: 1,
@@ -198,9 +203,9 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
         },
         child: LayoutBuilder(
           builder: (context, constraints) {
-            // Calculate page width based on available height and aspect ratio
+            // Calculate page width based on available height and actual PDF page aspect ratio
             final double availableHeight = constraints.maxHeight - 32; // Account for vertical padding
-            final double pageWidth = availableHeight * (8.5 / 11); // Width based on aspect ratio
+            final double pageWidth = availableHeight * pageAspectRatio; // Width based on actual aspect ratio
 
             // Detect page width change (screen resize) and update scroll position
             if (pageWidth != _lastPageWidth && _lastPageWidth > 0) {
