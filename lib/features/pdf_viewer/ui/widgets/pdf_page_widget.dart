@@ -9,6 +9,7 @@ class PdfPageWidget extends StatelessWidget {
   final int pageNumber;
   final bool isCurrentPage;
   final Function(int)? onLinkTap;
+  final bool shouldLoadLinks;
 
   const PdfPageWidget({
     super.key,
@@ -16,6 +17,7 @@ class PdfPageWidget extends StatelessWidget {
     required this.pageNumber,
     this.isCurrentPage = false,
     this.onLinkTap,
+    this.shouldLoadLinks = true,
   });
 
   @override
@@ -48,13 +50,14 @@ class PdfPageWidget extends StatelessWidget {
                 pageNumber: pageNumber,
                 alignment: Alignment.center,
               ),
-              // Link handler overlay
-              PdfLinkHandler(
-                document: document,
-                pageNumber: pageNumber,
-                pageSize: Size(constraints.maxWidth, constraints.maxHeight),
-                onInternalLinkTap: onLinkTap,
-              ),
+              // Only load link handler if shouldLoadLinks is true
+              if (shouldLoadLinks)
+                PdfLinkHandler(
+                  document: document,
+                  pageNumber: pageNumber,
+                  pageSize: Size(constraints.maxWidth, constraints.maxHeight),
+                  onInternalLinkTap: onLinkTap,
+                ),
             ],
           );
         },

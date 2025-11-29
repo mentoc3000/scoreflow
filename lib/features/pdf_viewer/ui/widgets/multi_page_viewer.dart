@@ -26,21 +26,73 @@ class MultiPageViewer extends StatefulWidget {
   State<MultiPageViewer> createState() => _MultiPageViewerState();
 }
 
+/// Determines which pages should have links loaded based on viewport visibility
+/// Loads links for current page +/- buffer pages
+class _PageVisibilityTracker {
+  final int totalPages;
+  final int bufferPages;
+
+  _PageVisibilityTracker({
+    required this.totalPages,
+    this.bufferPages = 2,
+  });
+
+  /// Returns set of page numbers that should have links loaded
+  Set<int> getVisiblePages(int currentPage) {
+    final Set<int> visiblePages = {};
+
+    // Add current page
+    visiblePages.add(currentPage);
+
+    // Add buffer pages before and after
+    for (int i = 1; i <= bufferPages; i++) {
+      final int prevPage = currentPage - i;
+      final int nextPage = currentPage + i;
+
+      if (prevPage >= 1) {
+        visiblePages.add(prevPage);
+      }
+
+      if (nextPage <= totalPages) {
+        visiblePages.add(nextPage);
+      }
+    }
+
+    return visiblePages;
+  }
+}
+
 class _MultiPageViewerState extends State<MultiPageViewer> {
   late ScrollController _scrollController;
   bool _isUpdatingFromExternal = false;
   double _pageWidth = 0;
   double _lastPageWidth = 0;
+  late _PageVisibilityTracker _visibilityTracker;
+  Set<int> _visiblePages = {};
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    _visibilityTracker = _PageVisibilityTracker(
+      totalPages: widget.totalPages,
+      bufferPages: 2, // Load links for current page +/- 2 pages
+    );
+    _updateVisiblePages(widget.currentPage);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.currentPage > 1 && _pageWidth > 0) {
         _scrollToPage(widget.currentPage, animate: false);
       }
     });
+  }
+
+  void _updateVisiblePages(int currentPage) {
+    final Set<int> newVisiblePages = _visibilityTracker.getVisiblePages(currentPage);
+    if (_visiblePages != newVisiblePages) {
+      setState(() {
+        _visiblePages = newVisiblePages;
+      });
+    }
   }
 
   @override
@@ -50,6 +102,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
     if (oldWidget.currentPage != widget.currentPage &&
         !_isUpdatingFromExternal) {
       _scrollToPage(widget.currentPage, animate: true);
+      _updateVisiblePages(widget.currentPage);
     }
   }
 
@@ -99,6 +152,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
         _isUpdatingFromExternal = true;
       });
       widget.onPageChanged(newPage);
+      _updateVisiblePages(newPage);
       Future.delayed(const Duration(milliseconds: 100), () {
         if (mounted) {
           setState(() {
@@ -131,6 +185,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
                 pageNumber: 1,
                 isCurrentPage: true,
                 onLinkTap: widget.onLinkTap,
+                shouldLoadLinks: true, // Always load links for single page
               ),
             ),
           ),
@@ -185,6 +240,8 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
                 child: Row(
                   children: List.generate(widget.totalPages, (index) {
                     final int pageNumber = index + 1;
+                    final bool shouldLoadLinks = _visiblePages.contains(pageNumber);
+
                     return Row(
                       children: [
                         SizedBox(
@@ -195,6 +252,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
                             pageNumber: pageNumber,
                             isCurrentPage: pageNumber == widget.currentPage,
                             onLinkTap: widget.onLinkTap,
+                            shouldLoadLinks: shouldLoadLinks,
                           ),
                         ),
                         if (index < widget.totalPages - 1) SizedBox(width: gap),
