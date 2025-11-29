@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import 'pdf_link_handler.dart';
 
-/// Widget for rendering a single PDF page
+/// Widget for rendering a single PDF page with text selection support
 class PdfPageWidget extends StatelessWidget {
   final PdfDocument document;
   final int pageNumber;
@@ -45,10 +46,13 @@ class PdfPageWidget extends StatelessWidget {
         builder: (BuildContext context, BoxConstraints constraints) {
           return Stack(
             children: [
-              PdfPageView(
-                document: document,
-                pageNumber: pageNumber,
-                alignment: Alignment.center,
+              // PDF page with text selection enabled
+              SelectionArea(
+                child: PdfPageView(
+                  document: document,
+                  pageNumber: pageNumber,
+                  alignment: Alignment.center,
+                ),
               ),
               // Only load link handler if shouldLoadLinks is true
               if (shouldLoadLinks)

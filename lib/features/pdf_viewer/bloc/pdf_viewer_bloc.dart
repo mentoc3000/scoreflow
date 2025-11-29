@@ -33,6 +33,14 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
     on<BookmarkSidebarToggled>(_onBookmarkSidebarToggled);
     on<NavigateBackRequested>(_onNavigateBackRequested);
     on<NavigateForwardRequested>(_onNavigateForwardRequested);
+    on<ZoomChanged>(_onZoomChanged);
+    on<ZoomInRequested>(_onZoomInRequested);
+    on<ZoomOutRequested>(_onZoomOutRequested);
+    on<ZoomResetRequested>(_onZoomResetRequested);
+    on<SearchQueryChanged>(_onSearchQueryChanged);
+    on<SearchNextRequested>(_onSearchNextRequested);
+    on<SearchPreviousRequested>(_onSearchPreviousRequested);
+    on<SearchClosed>(_onSearchClosed);
   }
 
   /// Loads recent files from the repository
@@ -355,6 +363,172 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
 
         emit(currentState.copyWith(currentPage: targetPage, navigationHistoryIndex: newIndex));
       }
+    }
+  }
+
+  /// Handles zoom level change
+  Future<void> _onZoomChanged(ZoomChanged event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+      // Clamp zoom between 0.25 (25%) and 4.0 (400%)
+      final double clampedZoom = event.zoomLevel.clamp(0.25, 4.0);
+      emit(currentState.copyWith(zoomLevel: clampedZoom));
+    }
+  }
+
+  /// Handles zoom in request
+  Future<void> _onZoomInRequested(ZoomInRequested event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+      final double newZoom = (currentState.zoomLevel + 0.25).clamp(0.25, 4.0);
+      emit(currentState.copyWith(zoomLevel: newZoom));
+    }
+  }
+
+  /// Handles zoom out request
+  Future<void> _onZoomOutRequested(ZoomOutRequested event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+      final double newZoom = (currentState.zoomLevel - 0.25).clamp(0.25, 4.0);
+      emit(currentState.copyWith(zoomLevel: newZoom));
+    }
+  }
+
+  /// Handles zoom reset request
+  Future<void> _onZoomResetRequested(ZoomResetRequested event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+      emit(currentState.copyWith(zoomLevel: 1.0));
+    }
+  }
+
+  /// Handles search query change
+  Future<void> _onSearchQueryChanged(SearchQueryChanged event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+
+      if (event.query.isEmpty) {
+        // Clear search
+        emit(currentState.copyWith(
+          searchQuery: '',
+          searchResults: [],
+          currentSearchResultIndex: -1,
+          isSearching: false,
+        ));
+        return;
+      }
+
+      // Start searching
+      emit(currentState.copyWith(
+        searchQuery: event.query,
+        isSearching: true,
+      ));
+
+      try {
+        // Search through all pages
+        final List<dynamic> allResults = [];
+
+        for (int i = 0; i < currentState.document.pages.length; i++) {
+          final PdfPage page = currentState.document.pages[i];
+
+          // Load text from page
+          try {
+            final PdfPageText? pageText = await page.loadText();
+            if (pageText != null) {
+              // Search for query in page text (case-insensitive)
+              final String text = pageText.fullText.toLowerCase();
+              final String query = event.query.toLowerCase();
+
+              int index = text.indexOf(query);
+              while (index != -1) {
+                allResults.add({
+                  'pageNumber': i + 1,
+                  'textIndex': index,
+                  'text': event.query,
+                });
+                index = text.indexOf(query, index + 1);
+              }
+            }
+          } catch (e) {
+            debugPrint('Error loading text from page ${i + 1}: $e');
+            // Continue with next page
+          }
+        }
+
+        emit(currentState.copyWith(
+          searchResults: allResults,
+          currentSearchResultIndex: allResults.isEmpty ? -1 : 0,
+          isSearching: false,
+        ));
+
+        // Navigate to first result if found
+        if (allResults.isNotEmpty) {
+          final int firstResultPage = allResults[0]['pageNumber'] as int;
+          emit(_addToNavigationHistory(
+            currentState.copyWith(
+              searchResults: allResults,
+              currentSearchResultIndex: 0,
+              isSearching: false,
+            ),
+            firstResultPage,
+          ));
+        }
+      } catch (e) {
+        debugPrint('Error searching PDF: $e');
+        emit(currentState.copyWith(
+          searchResults: [],
+          currentSearchResultIndex: -1,
+          isSearching: false,
+        ));
+      }
+    }
+  }
+
+  /// Handles search next request
+  Future<void> _onSearchNextRequested(SearchNextRequested event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+
+      if (currentState.searchResults.isEmpty) return;
+
+      final int nextIndex = (currentState.currentSearchResultIndex + 1) % currentState.searchResults.length;
+      final int pageNumber = currentState.searchResults[nextIndex]['pageNumber'] as int;
+
+      emit(_addToNavigationHistory(
+        currentState.copyWith(currentSearchResultIndex: nextIndex),
+        pageNumber,
+      ));
+    }
+  }
+
+  /// Handles search previous request
+  Future<void> _onSearchPreviousRequested(SearchPreviousRequested event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+
+      if (currentState.searchResults.isEmpty) return;
+
+      final int previousIndex = currentState.currentSearchResultIndex - 1;
+      final int wrappedIndex = previousIndex < 0 ? currentState.searchResults.length - 1 : previousIndex;
+      final int pageNumber = currentState.searchResults[wrappedIndex]['pageNumber'] as int;
+
+      emit(_addToNavigationHistory(
+        currentState.copyWith(currentSearchResultIndex: wrappedIndex),
+        pageNumber,
+      ));
+    }
+  }
+
+  /// Handles search close request
+  Future<void> _onSearchClosed(SearchClosed event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+      emit(currentState.copyWith(
+        searchQuery: '',
+        searchResults: [],
+        currentSearchResultIndex: -1,
+        isSearching: false,
+      ));
     }
   }
 

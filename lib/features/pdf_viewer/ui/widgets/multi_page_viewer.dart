@@ -14,6 +14,7 @@ class MultiPageViewer extends StatefulWidget {
   final int totalPages;
   final Function(int) onPageChanged;
   final Function(int)? onLinkTap;
+  final double zoomLevel;
 
   const MultiPageViewer({
     super.key,
@@ -22,6 +23,7 @@ class MultiPageViewer extends StatefulWidget {
     required this.totalPages,
     required this.onPageChanged,
     this.onLinkTap,
+    this.zoomLevel = 1.0,
   });
 
   @override
@@ -102,6 +104,14 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
     if (oldWidget.currentPage != widget.currentPage && !_isUpdatingFromExternal) {
       _scrollToPage(widget.currentPage, animate: true);
       _updateVisiblePages(widget.currentPage);
+    }
+
+    // Handle zoom level changes
+    if (oldWidget.zoomLevel != widget.zoomLevel && _pageWidth > 0) {
+      // Recalculate scroll position after zoom change
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToPage(widget.currentPage, animate: false);
+      });
     }
   }
 
@@ -205,9 +215,10 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
           builder: (context, constraints) {
             // Calculate page width based on available height and actual PDF page aspect ratio
             final double availableHeight = constraints.maxHeight - 32; // Account for vertical padding
-            final double pageWidth = availableHeight * pageAspectRatio; // Width based on actual aspect ratio
+            final double basePageWidth = availableHeight * pageAspectRatio; // Width based on actual aspect ratio
+            final double pageWidth = basePageWidth * widget.zoomLevel; // Apply zoom level
 
-            // Detect page width change (screen resize) and update scroll position
+            // Detect page width change (screen resize or zoom) and update scroll position
             if (pageWidth != _lastPageWidth && _lastPageWidth > 0) {
               _lastPageWidth = pageWidth;
               _pageWidth = pageWidth;
