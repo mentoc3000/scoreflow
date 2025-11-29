@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-import '../models/document_tab.dart';
+import '../models/base_tab.dart';
 import '../models/tab_state.dart';
 
 /// Base class for all tab manager events
@@ -32,7 +32,7 @@ class TabOpenRequested extends TabManagerEvent {
 
 /// Event when a tab is successfully opened with a document
 class TabOpened extends TabManagerEvent {
-  final DocumentTab tab;
+  final BaseTab tab;
 
   const TabOpened(this.tab);
 
@@ -73,4 +73,9 @@ class TabStateUpdated extends TabManagerEvent {
 /// Event to close all tabs and return to home screen
 class AllTabsClosed extends TabManagerEvent {
   const AllTabsClosed();
+}
+
+/// Event to open a config tab
+class ConfigTabRequested extends TabManagerEvent {
+  const ConfigTabRequested();
 }

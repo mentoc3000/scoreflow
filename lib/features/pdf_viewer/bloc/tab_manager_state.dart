@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-import '../models/document_tab.dart';
+import '../models/base_tab.dart';
 import '../models/tab_state.dart';
 
 /// Base class for all tab manager states
@@ -23,7 +23,7 @@ class TabManagerLoading extends TabManagerState {
 
 /// State when tabs are open and being managed
 class TabManagerLoaded extends TabManagerState {
-  final List<DocumentTab> tabs;
+  final List<BaseTab> tabs;
   final String? activeTabId;
   final Map<String, TabState> tabStates; // Map of tabId to its state
 
@@ -34,7 +34,7 @@ class TabManagerLoaded extends TabManagerState {
   });
 
   /// Gets the active tab
-  DocumentTab? get activeTab {
+  BaseTab? get activeTab {
     if (activeTabId == null) return null;
     try {
       return tabs.firstWhere((tab) => tab.id == activeTabId);
@@ -59,7 +59,7 @@ class TabManagerLoaded extends TabManagerState {
 
   /// Creates a copy with updated values
   TabManagerLoaded copyWith({
-    List<DocumentTab>? tabs,
+    List<BaseTab>? tabs,
     String? activeTabId,
     Map<String, TabState>? tabStates,
   }) {

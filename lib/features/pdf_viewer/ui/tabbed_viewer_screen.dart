@@ -7,7 +7,7 @@ import '../bloc/pdf_viewer_state.dart';
 import '../bloc/tab_manager_bloc.dart';
 import '../bloc/tab_manager_event.dart';
 import '../bloc/tab_manager_state.dart';
-import '../models/document_tab.dart';
+import '../models/base_tab.dart';
 import '../models/tab_state.dart';
 import 'home_screen.dart';
 import 'pdf_viewer_screen.dart';
@@ -25,11 +25,12 @@ class TabbedViewerScreen extends StatelessWidget {
           final TabManagerState tabState = context.read<TabManagerBloc>().state;
 
           if (tabState is TabManagerLoaded) {
-            final DocumentTab? activeTab = tabState.activeTab;
+            final BaseTab? activeTab = tabState.activeTab;
 
             // First, check if this file is already open in another tab
-            final DocumentTab? existingTab = tabState.tabs.cast<DocumentTab?>().firstWhere(
-              (tab) => tab != null && !tab.isHomeTab && tab.filePath == pdfState.filePath && tab.id != activeTab?.id,
+            final BaseTab? existingTab = tabState.tabs.cast<BaseTab?>().firstWhere(
+              (tab) =>
+                  tab != null && tab is DocumentTab && tab.filePath == pdfState.filePath && tab.id != activeTab?.id,
               orElse: () => null,
             );
 
@@ -40,14 +41,12 @@ class TabbedViewerScreen extends StatelessWidget {
             }
 
             // If the active tab is a home tab, transform it into a document tab
-            if (activeTab != null && activeTab.isHomeTab) {
+            if (activeTab != null && activeTab is HomeTab) {
               // Create a new document tab to replace the home tab
               final DocumentTab documentTab = DocumentTab.fromPath(pdfState.filePath);
 
               // Update the tab manager - use the same ID to replace the home tab
-              context.read<TabManagerBloc>().add(
-                TabOpened(documentTab.copyWith(id: activeTab.id)),
-              );
+              context.read<TabManagerBloc>().add(TabOpened(documentTab.copyWith(id: activeTab.id)));
             }
           }
         }
@@ -61,11 +60,7 @@ class TabbedViewerScreen extends StatelessWidget {
 
           // Show loading while restoring tabs
           if (tabState is TabManagerLoading) {
-            return const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
-            );
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
 
           // Show error if tab management fails
@@ -119,10 +114,11 @@ class _TabbedViewerContentState extends State<_TabbedViewerContent> {
     super.initState();
     // Load the active tab's document when this screen first appears
     // Only if it's not a home tab
-    if (widget.tabState.activeTab != null && !widget.tabState.activeTab!.isHomeTab) {
+    if (widget.tabState.activeTab != null && widget.tabState.activeTab is DocumentTab) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
 
+        final DocumentTab docTab = widget.tabState.activeTab! as DocumentTab;
         final PdfViewerState pdfState = context.read<PdfViewerBloc>().state;
 
         // Only load if:
@@ -130,15 +126,10 @@ class _TabbedViewerContentState extends State<_TabbedViewerContent> {
         // 2. The loaded document is different from the active tab
         if (pdfState is PdfViewerInitial) {
           // No document loaded at all, load the active tab's document
-          context.read<PdfViewerBloc>().add(
-            RecentFileOpened(widget.tabState.activeTab!.filePath),
-          );
-        } else if (pdfState is PdfViewerLoaded &&
-                   pdfState.filePath != widget.tabState.activeTab!.filePath) {
+          context.read<PdfViewerBloc>().add(RecentFileOpened(docTab.filePath));
+        } else if (pdfState is PdfViewerLoaded && pdfState.filePath != docTab.filePath) {
           // Different document is loaded, switch to active tab's document
-          context.read<PdfViewerBloc>().add(
-            RecentFileOpened(widget.tabState.activeTab!.filePath),
-          );
+          context.read<PdfViewerBloc>().add(RecentFileOpened(docTab.filePath));
         }
         // If PdfViewerLoading or already loaded correct document, do nothing
       });
@@ -153,39 +144,38 @@ class _TabbedViewerContentState extends State<_TabbedViewerContent> {
         Container(
           color: Theme.of(context).colorScheme.surfaceContainer,
           child: Row(
-              children: [
-                // Tabs
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (final DocumentTab tab in widget.tabState.tabs)
-                          _TabItem(
-                            tab: tab,
-                            isActive: tab.id == widget.tabState.activeTabId,
-                            onTap: () {
-                              // Switch to the tab
-                              context.read<TabManagerBloc>().add(TabSwitched(tab.id));
+            children: [
+              // Tabs
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final BaseTab tab in widget.tabState.tabs)
+                        _TabItem(
+                          tab: tab,
+                          isActive: tab.id == widget.tabState.activeTabId,
+                          onTap: () {
+                            // Switch to the tab
+                            context.read<TabManagerBloc>().add(TabSwitched(tab.id));
 
-                              // If it's not a home tab, load the document
-                              if (!tab.isHomeTab) {
-                                final PdfViewerState currentState = context.read<PdfViewerBloc>().state;
-                                // Only reload if it's a different document
-                                if (currentState is! PdfViewerLoaded ||
-                                    currentState.filePath != tab.filePath) {
-                                  context.read<PdfViewerBloc>().add(RecentFileOpened(tab.filePath));
-                                }
+                            // If it's a document tab, load the document
+                            if (tab is DocumentTab) {
+                              final PdfViewerState currentState = context.read<PdfViewerBloc>().state;
+                              // Only reload if it's a different document
+                              if (currentState is! PdfViewerLoaded || currentState.filePath != tab.filePath) {
+                                context.read<PdfViewerBloc>().add(RecentFileOpened(tab.filePath));
                               }
-                            },
-                            onClose: () {
-                              context.read<TabManagerBloc>().add(TabClosed(tab.id));
-                            },
-                          ),
-                      ],
-                    ),
+                            }
+                          },
+                          onClose: () {
+                            context.read<TabManagerBloc>().add(TabClosed(tab.id));
+                          },
+                        ),
+                    ],
                   ),
                 ),
+              ),
               // New tab button
               IconButton(
                 icon: const Icon(Icons.add),
@@ -213,8 +203,10 @@ class _TabbedViewerContentState extends State<_TabbedViewerContent> {
                 context.read<TabManagerBloc>().add(TabStateUpdated(currentTabState));
               }
             },
-            child: widget.tabState.activeTab?.isHomeTab == true
+            child: widget.tabState.activeTab is HomeTab
                 ? const HomeScreen()
+                : widget.tabState.activeTab is ConfigTab
+                ? const Center(child: Text('Config Screen - Coming Soon!'))
                 : const PdfViewerScreen(),
           ),
         ),
@@ -224,17 +216,12 @@ class _TabbedViewerContentState extends State<_TabbedViewerContent> {
 }
 
 class _TabItem extends StatelessWidget {
-  final DocumentTab tab;
+  final BaseTab tab;
   final bool isActive;
   final VoidCallback onTap;
   final VoidCallback onClose;
 
-  const _TabItem({
-    required this.tab,
-    required this.isActive,
-    required this.onTap,
-    required this.onClose,
-  });
+  const _TabItem({required this.tab, required this.isActive, required this.onTap, required this.onClose});
 
   @override
   Widget build(BuildContext context) {
@@ -246,9 +233,7 @@ class _TabItem extends StatelessWidget {
         }
       },
       child: Material(
-        color: isActive
-            ? Theme.of(context).colorScheme.surface
-            : Colors.transparent,
+        color: isActive ? Theme.of(context).colorScheme.surface : Colors.transparent,
         child: InkWell(
           onTap: onTap,
           child: Container(
@@ -256,9 +241,7 @@ class _TabItem extends StatelessWidget {
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
-                  color: isActive
-                      ? Theme.of(context).colorScheme.primary
-                      : Colors.transparent,
+                  color: isActive ? Theme.of(context).colorScheme.primary : Colors.transparent,
                   width: 2,
                 ),
               ),
@@ -267,17 +250,15 @@ class _TabItem extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // File icon
-                const Icon(Icons.description, size: 16),
+                Icon(_getIconForTab(tab), size: 16),
                 const SizedBox(width: 8),
                 // File name (truncated if too long)
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 150),
                   child: Text(
-                    tab.fileName,
+                    tab.displayName,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                    ),
+                    style: TextStyle(fontWeight: isActive ? FontWeight.bold : FontWeight.normal),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -285,10 +266,7 @@ class _TabItem extends StatelessWidget {
                 InkWell(
                   onTap: onClose,
                   borderRadius: BorderRadius.circular(12),
-                  child: const Padding(
-                    padding: EdgeInsets.all(2),
-                    child: Icon(Icons.close, size: 16),
-                  ),
+                  child: const Padding(padding: EdgeInsets.all(2), child: Icon(Icons.close, size: 16)),
                 ),
               ],
             ),
@@ -296,5 +274,12 @@ class _TabItem extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  IconData _getIconForTab(BaseTab tab) {
+    if (tab is HomeTab) return Icons.home;
+    if (tab is ConfigTab) return Icons.settings;
+    if (tab is DocumentTab) return Icons.description;
+    return Icons.tab;
   }
 }

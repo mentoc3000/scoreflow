@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/document_tab.dart';
+import '../models/base_tab.dart';
 import '../models/tab_state.dart';
 
 /// Repository for persisting and restoring tab state
@@ -16,13 +16,13 @@ class TabPersistenceRepository {
   TabPersistenceRepository(this._prefs);
 
   /// Saves the list of open tabs
-  Future<void> saveTabs(List<DocumentTab> tabs) async {
+  Future<void> saveTabs(List<BaseTab> tabs) async {
     final List<Map<String, dynamic>> tabsJson = tabs.map((tab) => tab.toJson()).toList();
     await _prefs.setString(_tabsKey, jsonEncode(tabsJson));
   }
 
   /// Loads the list of open tabs
-  Future<List<DocumentTab>> loadTabs() async {
+  Future<List<BaseTab>> loadTabs() async {
     final String? tabsJson = _prefs.getString(_tabsKey);
 
     if (tabsJson == null || tabsJson.isEmpty) {
@@ -32,7 +32,7 @@ class TabPersistenceRepository {
     try {
       final List<dynamic> decoded = jsonDecode(tabsJson) as List<dynamic>;
       return decoded
-          .map((json) => DocumentTab.fromJson(json as Map<String, dynamic>))
+          .map((json) => BaseTab.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
       // If there's an error parsing, return empty list

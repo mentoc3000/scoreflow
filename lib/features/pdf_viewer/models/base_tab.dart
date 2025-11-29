@@ -6,16 +6,12 @@ abstract class BaseTab extends Equatable {
   final String displayName;
   final DateTime openedAt;
 
-  const BaseTab({
-    required this.id,
-    required this.displayName,
-    required this.openedAt,
-  });
+  const BaseTab({required this.id, required this.displayName, required this.openedAt});
 
   /// Creates a tab from JSON
   factory BaseTab.fromJson(Map<String, dynamic> json) {
     final String type = json['type'] as String;
-    
+
     switch (type) {
       case 'home':
         return HomeTab.fromJson(json);
@@ -40,34 +36,21 @@ abstract class BaseTab extends Equatable {
 
 /// Home tab for opening new documents
 class HomeTab extends BaseTab {
-  const HomeTab({
-    required super.id,
-    required super.openedAt,
-  }) : super(displayName: 'Home');
+  const HomeTab({required super.id, required super.openedAt}) : super(displayName: 'Home');
 
   /// Creates a new home tab
   factory HomeTab.create() {
-    return HomeTab(
-      id: 'home_${DateTime.now().millisecondsSinceEpoch}',
-      openedAt: DateTime.now(),
-    );
+    return HomeTab(id: 'home_${DateTime.now().millisecondsSinceEpoch}', openedAt: DateTime.now());
   }
 
   /// Creates a HomeTab from JSON
   factory HomeTab.fromJson(Map<String, dynamic> json) {
-    return HomeTab(
-      id: json['id'] as String,
-      openedAt: DateTime.parse(json['openedAt'] as String),
-    );
+    return HomeTab(id: json['id'] as String, openedAt: DateTime.parse(json['openedAt'] as String));
   }
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      'type': type,
-      'id': id,
-      'openedAt': openedAt.toIso8601String(),
-    };
+    return {'type': type, 'id': id, 'openedAt': openedAt.toIso8601String()};
   }
 
   @override
@@ -111,13 +94,7 @@ class DocumentTab extends BaseTab {
   }
 
   /// Creates a copy with updated values
-  DocumentTab copyWith({
-    String? id,
-    String? filePath,
-    String? fileName,
-    String? bookmark,
-    DateTime? openedAt,
-  }) {
+  DocumentTab copyWith({String? id, String? filePath, String? fileName, String? bookmark, DateTime? openedAt}) {
     return DocumentTab(
       id: id ?? this.id,
       filePath: filePath ?? this.filePath,
@@ -148,37 +125,23 @@ class DocumentTab extends BaseTab {
 
 /// Configuration tab for app settings
 class ConfigTab extends BaseTab {
-  const ConfigTab({
-    required super.id,
-    required super.openedAt,
-  }) : super(displayName: 'Settings');
+  const ConfigTab({required super.id, required super.openedAt}) : super(displayName: 'Settings');
 
   /// Creates a new config tab
   factory ConfigTab.create() {
-    return ConfigTab(
-      id: 'config_${DateTime.now().millisecondsSinceEpoch}',
-      openedAt: DateTime.now(),
-    );
+    return ConfigTab(id: 'config_${DateTime.now().millisecondsSinceEpoch}', openedAt: DateTime.now());
   }
 
   /// Creates a ConfigTab from JSON
   factory ConfigTab.fromJson(Map<String, dynamic> json) {
-    return ConfigTab(
-      id: json['id'] as String,
-      openedAt: DateTime.parse(json['openedAt'] as String),
-    );
+    return ConfigTab(id: json['id'] as String, openedAt: DateTime.parse(json['openedAt'] as String));
   }
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      'type': type,
-      'id': id,
-      'openedAt': openedAt.toIso8601String(),
-    };
+    return {'type': type, 'id': id, 'openedAt': openedAt.toIso8601String()};
   }
 
   @override
   String get type => 'config';
 }
-
