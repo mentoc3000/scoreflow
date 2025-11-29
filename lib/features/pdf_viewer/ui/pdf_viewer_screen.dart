@@ -20,6 +20,9 @@ class PdfViewerScreen extends StatefulWidget {
 
 class _PdfViewerScreenState extends State<PdfViewerScreen> {
   final FocusNode _focusNode = FocusNode();
+  double _sidebarWidth = 300.0; // Default sidebar width
+  static const double _minSidebarWidth = 200.0;
+  static const double _maxSidebarWidth = 600.0;
 
   @override
   void initState() {
@@ -135,6 +138,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                         BookmarkSidebar(
                           bookmarks: bookmarkItems,
                           isOpen: state.isBookmarkSidebarOpen,
+                          width: _sidebarWidth,
                           onToggle: () {
                             context.read<PdfViewerBloc>().add(const BookmarkSidebarToggled());
                           },
@@ -143,6 +147,29 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                           },
                           currentPage: state.currentPage,
                         ),
+                        // Resizable divider (only visible when sidebar is open)
+                        if (state.isBookmarkSidebarOpen)
+                          MouseRegion(
+                            cursor: SystemMouseCursors.resizeColumn,
+                            child: GestureDetector(
+                              onHorizontalDragUpdate: (DragUpdateDetails details) {
+                                setState(() {
+                                  _sidebarWidth = (_sidebarWidth + details.delta.dx)
+                                      .clamp(_minSidebarWidth, _maxSidebarWidth);
+                                });
+                              },
+                              child: Container(
+                                width: 8,
+                                color: Colors.transparent,
+                                child: Center(
+                                  child: Container(
+                                    width: 1,
+                                    color: Colors.grey[300],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         // PDF Viewer
                         Expanded(
                           child: MultiPageViewer(
