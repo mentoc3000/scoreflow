@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -214,7 +216,8 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
             }
 
             // Store the left padding for scroll calculations
-            final double leftPadding = (constraints.maxWidth - (2 * pageWidth + _gap)) / 2;
+            // Ensure padding is never negative (when viewport is too narrow)
+            final double leftPadding = math.max(0, (constraints.maxWidth - (2 * pageWidth + _gap)) / 2);
 
             return SingleChildScrollView(
               controller: _scrollController,
