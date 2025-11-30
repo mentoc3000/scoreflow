@@ -6,7 +6,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:macos_secure_bookmarks/macos_secure_bookmarks.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import '../../../core/config/app_config.dart';
 import '../models/recent_file.dart';
+import '../models/search_result.dart';
 import '../repositories/recent_files_repository.dart';
 import 'pdf_viewer_event.dart';
 import 'pdf_viewer_state.dart';
@@ -107,7 +109,8 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
     );
 
     String? resolvedPath;
-    if (recentFile?.bookmark != null) {
+    // Only use bookmarks on macOS
+    if (Platform.isMacOS && recentFile?.bookmark != null) {
       debugPrint('Found bookmark, attempting to resolve...');
       try {
         final FileSystemEntity resolved = await _secureBookmarks.resolveBookmark(recentFile!.bookmark!);
@@ -161,8 +164,8 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
 
       // Create security-scoped bookmark if we don't have one already
       String? newBookmark = bookmark;
-      if (newBookmark == null && !isFromRecentFiles) {
-        // Only create bookmark when opening via file picker
+      if (newBookmark == null && !isFromRecentFiles && Platform.isMacOS) {
+        // Only create bookmark when opening via file picker on macOS
         try {
           newBookmark = await _secureBookmarks.bookmark(File(filePath));
           debugPrint('Created new bookmark for file');
@@ -205,9 +208,9 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
       debugPrint('Stack trace: $stackTrace');
 
       // If this is from recent files and first attempt, retry once after a delay
-      if (isFromRecentFiles && retryCount < 1) {
+      if (isFromRecentFiles && retryCount < AppConfig.maxFileAccessRetries) {
         debugPrint('Retrying after delay...');
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(AppConfig.fileAccessRetryDelay);
         return _loadPdfFile(
           filePath,
           emit,
@@ -370,8 +373,8 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
   Future<void> _onZoomChanged(ZoomChanged event, Emitter<PdfViewerState> emit) async {
     if (state is PdfViewerLoaded) {
       final PdfViewerLoaded currentState = state as PdfViewerLoaded;
-      // Clamp zoom between 0.25 (25%) and 4.0 (400%)
-      final double clampedZoom = event.zoomLevel.clamp(0.25, 4.0);
+      // Clamp zoom between min and max levels from AppConfig
+      final double clampedZoom = event.zoomLevel.clamp(AppConfig.minZoomLevel, AppConfig.maxZoomLevel);
       emit(currentState.copyWith(zoomLevel: clampedZoom));
     }
   }
@@ -380,7 +383,7 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
   Future<void> _onZoomInRequested(ZoomInRequested event, Emitter<PdfViewerState> emit) async {
     if (state is PdfViewerLoaded) {
       final PdfViewerLoaded currentState = state as PdfViewerLoaded;
-      final double newZoom = (currentState.zoomLevel + 0.25).clamp(0.25, 4.0);
+      final double newZoom = (currentState.zoomLevel + AppConfig.zoomStep).clamp(AppConfig.minZoomLevel, AppConfig.maxZoomLevel);
       emit(currentState.copyWith(zoomLevel: newZoom));
     }
   }
@@ -389,7 +392,7 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
   Future<void> _onZoomOutRequested(ZoomOutRequested event, Emitter<PdfViewerState> emit) async {
     if (state is PdfViewerLoaded) {
       final PdfViewerLoaded currentState = state as PdfViewerLoaded;
-      final double newZoom = (currentState.zoomLevel - 0.25).clamp(0.25, 4.0);
+      final double newZoom = (currentState.zoomLevel - AppConfig.zoomStep).clamp(AppConfig.minZoomLevel, AppConfig.maxZoomLevel);
       emit(currentState.copyWith(zoomLevel: newZoom));
     }
   }
@@ -398,7 +401,7 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
   Future<void> _onZoomResetRequested(ZoomResetRequested event, Emitter<PdfViewerState> emit) async {
     if (state is PdfViewerLoaded) {
       final PdfViewerLoaded currentState = state as PdfViewerLoaded;
-      emit(currentState.copyWith(zoomLevel: 1.0));
+      emit(currentState.copyWith(zoomLevel: AppConfig.defaultZoomLevel));
     }
   }
 
@@ -426,28 +429,26 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
 
       try {
         // Search through all pages
-        final List<dynamic> allResults = [];
+        final List<SearchResult> allResults = [];
 
         for (int i = 0; i < currentState.document.pages.length; i++) {
           final PdfPage page = currentState.document.pages[i];
 
           // Load text from page
           try {
-            final PdfPageText? pageText = await page.loadText();
-            if (pageText != null) {
-              // Search for query in page text (case-insensitive)
-              final String text = pageText.fullText.toLowerCase();
+            final PdfPageText pageText = await page.loadText();
+            // Search for query in page text (case-insensitive)
+            final String text = pageText.fullText.toLowerCase();
               final String query = event.query.toLowerCase();
 
               int index = text.indexOf(query);
               while (index != -1) {
-                allResults.add({
-                  'pageNumber': i + 1,
-                  'textIndex': index,
-                  'text': event.query,
-                });
-                index = text.indexOf(query, index + 1);
-              }
+                allResults.add(SearchResult(
+                  pageNumber: i + 1,
+                  textIndex: index,
+                  text: event.query,
+              ));
+              index = text.indexOf(query, index + 1);
             }
           } catch (e) {
             debugPrint('Error loading text from page ${i + 1}: $e');
@@ -463,7 +464,7 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
 
         // Navigate to first result if found
         if (allResults.isNotEmpty) {
-          final int firstResultPage = allResults[0]['pageNumber'] as int;
+          final int firstResultPage = allResults[0].pageNumber;
           emit(_addToNavigationHistory(
             currentState.copyWith(
               searchResults: allResults,
@@ -492,7 +493,7 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
       if (currentState.searchResults.isEmpty) return;
 
       final int nextIndex = (currentState.currentSearchResultIndex + 1) % currentState.searchResults.length;
-      final int pageNumber = currentState.searchResults[nextIndex]['pageNumber'] as int;
+      final int pageNumber = currentState.searchResults[nextIndex].pageNumber;
 
       emit(_addToNavigationHistory(
         currentState.copyWith(currentSearchResultIndex: nextIndex),
@@ -510,7 +511,7 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
 
       final int previousIndex = currentState.currentSearchResultIndex - 1;
       final int wrappedIndex = previousIndex < 0 ? currentState.searchResults.length - 1 : previousIndex;
-      final int pageNumber = currentState.searchResults[wrappedIndex]['pageNumber'] as int;
+      final int pageNumber = currentState.searchResults[wrappedIndex].pageNumber;
 
       emit(_addToNavigationHistory(
         currentState.copyWith(currentSearchResultIndex: wrappedIndex),

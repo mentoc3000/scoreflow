@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/config/app_config.dart';
 import '../bloc/pdf_viewer_bloc.dart';
 import '../bloc/pdf_viewer_event.dart';
 import '../bloc/pdf_viewer_state.dart';
@@ -21,9 +22,7 @@ class PdfViewerScreen extends StatefulWidget {
 
 class _PdfViewerScreenState extends State<PdfViewerScreen> {
   final FocusNode _focusNode = FocusNode();
-  double _sidebarWidth = 300.0; // Default sidebar width
-  static const double _minSidebarWidth = 200.0;
-  static const double _maxSidebarWidth = 600.0;
+  double _sidebarWidth = AppConfig.defaultSidebarWidth;
   bool _isSearchOpen = false;
 
   @override
@@ -197,7 +196,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                               onHorizontalDragUpdate: (DragUpdateDetails details) {
                                 setState(() {
                                   _sidebarWidth = (_sidebarWidth + details.delta.dx)
-                                      .clamp(_minSidebarWidth, _maxSidebarWidth);
+                                      .clamp(AppConfig.minSidebarWidth, AppConfig.maxSidebarWidth);
                                 });
                               },
                               child: Container(

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:scoreflow/main.dart';
 import 'package:scoreflow/features/pdf_viewer/repositories/recent_files_repository.dart';
+import 'package:scoreflow/features/pdf_viewer/repositories/tab_persistence_repository.dart';
 
 void main() {
   testWidgets('ScoreFlow app smoke test', (WidgetTester tester) async {
@@ -12,10 +13,13 @@ void main() {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final RecentFilesRepository recentFilesRepository =
         RecentFilesRepository(prefs);
+    final TabPersistenceRepository tabPersistenceRepository =
+        TabPersistenceRepository(prefs);
 
     // Build our app and trigger a frame.
     await tester.pumpWidget(ScoreFlowApp(
       recentFilesRepository: recentFilesRepository,
+      tabPersistenceRepository: tabPersistenceRepository,
     ));
 
     // Verify that the home screen shows up with the Open PDF button

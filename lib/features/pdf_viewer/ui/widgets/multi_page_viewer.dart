@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import '../../../../core/config/app_config.dart';
 import 'pdf_page_widget.dart';
 
 /// Widget for displaying PDF with two-page sliding view
@@ -70,7 +71,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
   double _lastPageWidth = 0;
   late _PageVisibilityTracker _visibilityTracker;
   Set<int> _visiblePages = {};
-  final double _gap = 8.0; // Gap between pages
+  final double _gap = AppConfig.pageGap;
 
   @override
   void initState() {
@@ -78,7 +79,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
     _scrollController = ScrollController();
     _visibilityTracker = _PageVisibilityTracker(
       totalPages: widget.totalPages,
-      bufferPages: 2, // Load links for current page +/- 2 pages
+      bufferPages: AppConfig.searchBufferPages,
     );
     _updateVisiblePages(widget.currentPage);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -128,7 +129,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
     final double clampedScroll = targetScroll >= maxScroll ? maxScroll : targetScroll;
 
     if (animate) {
-      _scrollController.animateTo(clampedScroll, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      _scrollController.animateTo(clampedScroll, duration: AppConfig.scrollAnimationDuration, curve: Curves.easeInOut);
     } else {
       _scrollController.jumpTo(clampedScroll);
     }
@@ -156,7 +157,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
       });
       widget.onPageChanged(newPage);
       _updateVisiblePages(newPage);
-      Future.delayed(const Duration(milliseconds: 100), () {
+      Future.delayed(AppConfig.tabSwitchDelay, () {
         if (mounted) {
           setState(() {
             _isUpdatingFromExternal = false;
@@ -214,7 +215,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             // Calculate page width based on available height and actual PDF page aspect ratio
-            final double availableHeight = constraints.maxHeight - 32; // Account for vertical padding
+            final double availableHeight = constraints.maxHeight - (2 * AppConfig.pagePadding);
             final double basePageWidth = availableHeight * pageAspectRatio; // Width based on actual aspect ratio
             final double pageWidth = basePageWidth * widget.zoomLevel; // Apply zoom level
 
@@ -242,8 +243,8 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
                 padding: EdgeInsets.only(
                   left: leftPadding, // Center two pages
                   right: leftPadding,
-                  top: 16.0,
-                  bottom: 16.0,
+                  top: AppConfig.pagePadding,
+                  bottom: AppConfig.pagePadding,
                 ),
                 child: Row(
                   children: List.generate(widget.totalPages, (index) {

@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/config/app_config.dart';
 import '../models/base_tab.dart';
 import '../models/tab_state.dart';
 import '../repositories/tab_persistence_repository.dart';
@@ -9,7 +10,6 @@ import 'tab_manager_state.dart';
 /// BLoC for managing multiple document tabs
 class TabManagerBloc extends Bloc<TabManagerEvent, TabManagerState> {
   final TabPersistenceRepository _persistenceRepository;
-  static const int maxTabs = 10;
 
   TabManagerBloc({required TabPersistenceRepository persistenceRepository})
     : _persistenceRepository = persistenceRepository,
@@ -56,8 +56,8 @@ class TabManagerBloc extends Bloc<TabManagerEvent, TabManagerState> {
     final TabManagerState currentState = state;
 
     // Check if we're at max tabs
-    if (currentState is TabManagerLoaded && currentState.tabs.length >= maxTabs) {
-      emit(TabManagerError('Maximum of $maxTabs tabs reached'));
+    if (currentState is TabManagerLoaded && currentState.tabs.length >= AppConfig.maxTabs) {
+      emit(TabManagerError('Maximum of ${AppConfig.maxTabs} tabs reached'));
       // Restore the previous state after showing error
       emit(currentState);
       return;
@@ -230,8 +230,8 @@ class TabManagerBloc extends Bloc<TabManagerEvent, TabManagerState> {
     final TabManagerState currentState = state;
 
     // Check if we're at max tabs
-    if (currentState is TabManagerLoaded && currentState.tabs.length >= maxTabs) {
-      emit(TabManagerError('Maximum of $maxTabs tabs reached'));
+    if (currentState is TabManagerLoaded && currentState.tabs.length >= AppConfig.maxTabs) {
+      emit(TabManagerError('Maximum of ${AppConfig.maxTabs} tabs reached'));
       // Restore the previous state after showing error
       emit(currentState);
       return;

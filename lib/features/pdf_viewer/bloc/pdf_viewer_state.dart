@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../models/recent_file.dart';
+import '../models/search_result.dart';
 
 /// Base class for all PDF viewer states
 abstract class PdfViewerState extends Equatable {
@@ -44,7 +45,7 @@ class PdfViewerLoaded extends PdfViewerState {
   final int navigationHistoryIndex;
   final double zoomLevel;
   final String? searchQuery;
-  final List<dynamic> searchResults; // Will be List<PdfTextSearchResult>
+  final List<SearchResult> searchResults;
   final int currentSearchResultIndex;
   final bool isSearching;
 
@@ -78,7 +79,7 @@ class PdfViewerLoaded extends PdfViewerState {
     int? navigationHistoryIndex,
     double? zoomLevel,
     String? searchQuery,
-    List<dynamic>? searchResults,
+    List<SearchResult>? searchResults,
     int? currentSearchResultIndex,
     bool? isSearching,
   }) {
