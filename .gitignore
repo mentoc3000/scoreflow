@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Generated app icons (keep base icon in assets/icon/)
+android/app/src/main/res/mipmap-*/
+android/app/src/main/res/drawable-*/
+android/app/src/main/res/values/colors.xml
+ios/Runner/Assets.xcassets/AppIcon.appiconset/*
+macos/Runner/Assets.xcassets/AppIcon.appiconset/*
+web/icons/Icon-*.png
+web/icons/Icon-maskable-*.png
+web/favicon.png
