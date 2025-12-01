@@ -58,15 +58,23 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
   /// Opens file picker dialog
   Future<void> _onOpenFileRequested(OpenFileRequested event, Emitter<PdfViewerState> emit) async {
     try {
+      // Get the last directory used
+      final String? lastDirectory = await _recentFilesRepository.getLastDirectory();
+
       final FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
         allowMultiple: false,
+        initialDirectory: lastDirectory,
       );
 
       if (result != null && result.files.isNotEmpty) {
         final String? filePath = result.files.first.path;
         if (filePath != null) {
+          // Save the directory for next time
+          final String directory = filePath.substring(0, filePath.lastIndexOf('/'));
+          await _recentFilesRepository.setLastDirectory(directory);
+
           add(FileSelected(filePath));
         }
       }
