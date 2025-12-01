@@ -436,7 +436,11 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
 
           // Load text from page
           try {
-            final PdfPageText pageText = await page.loadText();
+            final PdfPageRawText? pageText = await page.loadText();
+            if (pageText == null) {
+              debugPrint('No text found on page ${i + 1}');
+              continue;
+            }
             // Search for query in page text (case-insensitive)
             final String text = pageText.fullText.toLowerCase();
               final String query = event.query.toLowerCase();
