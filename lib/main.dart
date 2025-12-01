@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:path/path.dart' as path;
+import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'features/pdf_viewer/bloc/pdf_viewer_bloc.dart';
 import 'features/pdf_viewer/bloc/tab_manager_bloc.dart';
@@ -10,6 +14,9 @@ import 'features/pdf_viewer/ui/tabbed_viewer_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize cache directory for pdfrx
+  await _initializePdfrxCache();
 
   // Initialize SharedPreferences
   final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -22,6 +29,39 @@ void main() async {
     recentFilesRepository: recentFilesRepository,
     tabPersistenceRepository: tabPersistenceRepository,
   ));
+}
+
+Future<void> _initializePdfrxCache() async {
+  // Set up cache directory for pdfrx
+  Pdfrx.getCacheDirectory = () async {
+    if (Platform.isMacOS) {
+      final String home = Platform.environment['HOME'] ?? '';
+      final String cacheDir = path.join(home, 'Library', 'Caches', 'com.scoreflow.app', 'pdfrx_cache');
+      final Directory dir = Directory(cacheDir);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      return cacheDir;
+    } else if (Platform.isLinux) {
+      final String home = Platform.environment['HOME'] ?? '';
+      final String cacheDir = path.join(home, '.cache', 'scoreflow', 'pdfrx_cache');
+      final Directory dir = Directory(cacheDir);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      return cacheDir;
+    } else if (Platform.isWindows) {
+      final String temp = Platform.environment['TEMP'] ?? '';
+      final String cacheDir = path.join(temp, 'scoreflow', 'pdfrx_cache');
+      final Directory dir = Directory(cacheDir);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      return cacheDir;
+    }
+    // Fallback to system temp directory
+    return Directory.systemTemp.path;
+  };
 }
 
 class ScoreFlowApp extends StatelessWidget {

@@ -109,6 +109,7 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
     );
 
     String? resolvedPath;
+    bool hasSecurityAccess = false;
     // Only use bookmarks on macOS
     if (Platform.isMacOS && recentFile?.bookmark != null) {
       debugPrint('Found bookmark, attempting to resolve...');
@@ -116,11 +117,24 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
         final FileSystemEntity resolved = await _secureBookmarks.resolveBookmark(recentFile!.bookmark!);
         resolvedPath = resolved.path;
         debugPrint('Bookmark resolved to: $resolvedPath');
-        await _secureBookmarks.startAccessingSecurityScopedResource(File(resolvedPath));
-        debugPrint('Started accessing security-scoped resource');
+        hasSecurityAccess = await _secureBookmarks.startAccessingSecurityScopedResource(File(resolvedPath));
+        debugPrint('Security-scoped access granted: $hasSecurityAccess');
       } catch (e) {
         debugPrint('Bookmark resolution failed: $e');
         // Bookmark failed, will try direct access
+      }
+    }
+
+    // If bookmark resolution failed or we're not on macOS, use the original path
+    // and try to start security-scoped access directly
+    if (!hasSecurityAccess && Platform.isMacOS) {
+      try {
+        debugPrint('Attempting direct security-scoped access for: ${event.filePath}');
+        hasSecurityAccess = await _secureBookmarks.startAccessingSecurityScopedResource(File(event.filePath));
+        debugPrint('Direct security-scoped access granted: $hasSecurityAccess');
+        resolvedPath = event.filePath;
+      } catch (e) {
+        debugPrint('Direct security-scoped access failed: $e');
       }
     }
 
@@ -147,8 +161,21 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
       await _currentDocument?.dispose();
 
       debugPrint('Opening PDF document...');
-      // Open the PDF document
-      final PdfDocument document = await PdfDocument.openFile(filePath);
+
+      // For files with security-scoped access (recent files on macOS),
+      // read into memory to avoid file access issues
+      PdfDocument document;
+      if (isFromRecentFiles && Platform.isMacOS) {
+        debugPrint('Loading from memory for security-scoped file...');
+        final File file = File(filePath);
+        final Uint8List bytes = await file.readAsBytes();
+        debugPrint('Read ${bytes.length} bytes from file');
+        document = await PdfDocument.openData(bytes);
+      } else {
+        // Direct file access for new files
+        document = await PdfDocument.openFile(filePath);
+      }
+
       debugPrint('PDF opened successfully. Pages: ${document.pages.length}');
 
       // Verify the document has pages
