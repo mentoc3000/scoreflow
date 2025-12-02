@@ -16,7 +16,7 @@ A macOS PDF viewer application built with Flutter, focused on displaying sheet m
 
 The application follows a clean architecture pattern with feature-based organization:
 
-```
+```sh
 lib/
 ├── main.dart                          # App entry point
 └── features/
@@ -61,15 +61,15 @@ lib/
 
 1. Install dependencies:
 
-```bash
-flutter pub get
-```
+    ```bash
+    flutter pub get
+    ```
 
 2. Run on macOS:
 
-```bash
-flutter run -d macos
-```
+    ```bash
+    flutter run -d macos
+    ```
 
 ### Building for Release
 
