@@ -1,38 +1,94 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:path/path.dart' as path;
+import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'features/pdf_viewer/bloc/pdf_viewer_bloc.dart';
-import 'features/pdf_viewer/bloc/pdf_viewer_event.dart';
-import 'features/pdf_viewer/bloc/pdf_viewer_state.dart';
+import 'features/pdf_viewer/bloc/tab_manager_bloc.dart';
+import 'features/pdf_viewer/bloc/tab_manager_event.dart';
 import 'features/pdf_viewer/repositories/recent_files_repository.dart';
-import 'features/pdf_viewer/ui/home_screen.dart';
-import 'features/pdf_viewer/ui/pdf_viewer_screen.dart';
+import 'features/pdf_viewer/repositories/tab_persistence_repository.dart';
+import 'features/pdf_viewer/ui/tabbed_viewer_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize cache directory for pdfrx
+  await _initializePdfrxCache();
 
   // Initialize SharedPreferences
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   final RecentFilesRepository recentFilesRepository =
       RecentFilesRepository(prefs);
+  final TabPersistenceRepository tabPersistenceRepository =
+      TabPersistenceRepository(prefs);
 
-  runApp(ScoreFlowApp(recentFilesRepository: recentFilesRepository));
+  runApp(ScoreFlowApp(
+    recentFilesRepository: recentFilesRepository,
+    tabPersistenceRepository: tabPersistenceRepository,
+  ));
+}
+
+Future<void> _initializePdfrxCache() async {
+  // Set up cache directory for pdfrx
+  Pdfrx.getCacheDirectory = () async {
+    if (Platform.isMacOS) {
+      final String home = Platform.environment['HOME'] ?? '';
+      final String cacheDir = path.join(home, 'Library', 'Caches', 'com.scoreflow.app', 'pdfrx_cache');
+      final Directory dir = Directory(cacheDir);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      return cacheDir;
+    } else if (Platform.isLinux) {
+      final String home = Platform.environment['HOME'] ?? '';
+      final String cacheDir = path.join(home, '.cache', 'scoreflow', 'pdfrx_cache');
+      final Directory dir = Directory(cacheDir);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      return cacheDir;
+    } else if (Platform.isWindows) {
+      final String temp = Platform.environment['TEMP'] ?? '';
+      final String cacheDir = path.join(temp, 'scoreflow', 'pdfrx_cache');
+      final Directory dir = Directory(cacheDir);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      return cacheDir;
+    }
+    // Fallback to system temp directory
+    return Directory.systemTemp.path;
+  };
 }
 
 class ScoreFlowApp extends StatelessWidget {
   final RecentFilesRepository recentFilesRepository;
+  final TabPersistenceRepository tabPersistenceRepository;
 
   const ScoreFlowApp({
     super.key,
     required this.recentFilesRepository,
+    required this.tabPersistenceRepository,
   });
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (BuildContext context) => PdfViewerBloc(
-        recentFilesRepository: recentFilesRepository,
-      )..add(const RecentFilesRequested()),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (BuildContext context) => PdfViewerBloc(
+            recentFilesRepository: recentFilesRepository,
+          ),
+        ),
+        BlocProvider(
+          create: (BuildContext context) => TabManagerBloc(
+            persistenceRepository: tabPersistenceRepository,
+          )..add(const TabsRestoreRequested()),
+        ),
+      ],
       child: MaterialApp(
         title: 'ScoreFlow',
         debugShowCheckedModeBanner: false,
@@ -40,32 +96,8 @@ class ScoreFlowApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
           useMaterial3: true,
         ),
-        home: const ScoreFlowHome(),
+        home: const TabbedViewerScreen(),
       ),
-    );
-  }
-}
-
-class ScoreFlowHome extends StatelessWidget {
-  const ScoreFlowHome({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<PdfViewerBloc, PdfViewerState>(
-      builder: (BuildContext context, PdfViewerState state) {
-        // Show home screen when no PDF is loaded
-        if (state is PdfViewerInitial || state is PdfViewerError) {
-          return const HomeScreen();
-        }
-
-        // Show PDF viewer screen when loading or loaded
-        if (state is PdfViewerLoading || state is PdfViewerLoaded) {
-          return const PdfViewerScreen();
-        }
-
-        // Fallback
-        return const HomeScreen();
-      },
     );
   }
 }

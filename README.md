@@ -60,11 +60,13 @@ lib/
 ### Installation
 
 1. Install dependencies:
+
 ```bash
 flutter pub get
 ```
 
 2. Run on macOS:
+
 ```bash
 flutter run -d macos
 ```
@@ -89,11 +91,13 @@ The built app will be available at:
 ### Navigating Pages
 
 **Keyboard Shortcuts:**
+
 - **Arrow Keys**: Left/Up for previous page, Right/Down for next page
 - **Page Up**: Go to previous page
 - **Page Down**: Go to next page
 
 **Mouse/Trackpad:**
+
 - Use the Previous/Next buttons at the bottom
 - Click on the page number field to jump to a specific page
 - Swipe horizontally to scroll between pages
@@ -101,10 +105,12 @@ The built app will be available at:
 ### Multi-Page View
 
 The viewer displays pages optimally based on the document:
+
 - **Single page PDFs**: Page is centered on screen
 - **Multi-page PDFs**: Two pages displayed side by side (like a book)
 
 When navigating:
+
 - **Next/Previous buttons or arrow keys**: Advance by one spread (2 pages)
 - **Swipe left/right**: Navigate between spreads
 - **Page number input**: Jump to any specific page
@@ -126,10 +132,12 @@ This two-page spread layout is perfect for sheet music where you want to see bot
 ## File Permissions
 
 The app requires file access permissions to open PDF files. These are configured in:
+
 - `macos/Runner/DebugProfile.entitlements`
 - `macos/Runner/Release.entitlements`
 
 The app uses:
+
 - `com.apple.security.files.user-selected.read-only` and `com.apple.security.files.user-selected.read-write` entitlements for file picker access
 - **Security-scoped bookmarks** to persist file access permissions across app launches
 
@@ -144,11 +152,13 @@ This ensures that files in cloud storage locations (like Google Drive) can be op
 ## Testing
 
 Run tests with:
+
 ```bash
 flutter test
 ```
 
 Run analysis:
+
 ```bash
 flutter analyze
 ```
@@ -156,11 +166,14 @@ flutter analyze
 ## New Features in Latest Update
 
 ### 1. Keyboard Navigation
+
 All arrow keys and Page Up/Down now work for navigation:
+
 - **Left Arrow / Up Arrow / Page Up**: Previous page
 - **Right Arrow / Down Arrow / Page Down**: Next page
 
 ### 2. Multi-Page Horizontal View
+
 - See three pages at once (previous, current, next)
 - Current page is centered and highlighted with a shadow
 - Adjacent pages are partially visible for context
@@ -170,6 +183,7 @@ All arrow keys and Page Up/Down now work for navigation:
 ## Future Enhancements
 
 Potential features for future versions:
+
 - Zoom controls (zoom in/out, fit to width/height)
 - Thumbnail sidebar for quick page navigation
 - Annotations and markup tools

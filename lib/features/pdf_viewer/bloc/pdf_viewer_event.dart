@@ -97,3 +97,63 @@ class NavigateBackRequested extends PdfViewerEvent {
 class NavigateForwardRequested extends PdfViewerEvent {
   const NavigateForwardRequested();
 }
+
+/// Event to change zoom level to a specific value
+class ZoomChanged extends PdfViewerEvent {
+  final double zoomLevel;
+
+  const ZoomChanged(this.zoomLevel);
+
+  @override
+  List<Object?> get props => [zoomLevel];
+}
+
+/// Event to zoom in (increase by 0.25)
+class ZoomInRequested extends PdfViewerEvent {
+  const ZoomInRequested();
+}
+
+/// Event to zoom out (decrease by 0.25)
+class ZoomOutRequested extends PdfViewerEvent {
+  const ZoomOutRequested();
+}
+
+/// Event to reset zoom to default (1.0)
+class ZoomResetRequested extends PdfViewerEvent {
+  const ZoomResetRequested();
+}
+
+/// Event when search query changes
+class SearchQueryChanged extends PdfViewerEvent {
+  final String query;
+
+  const SearchQueryChanged(this.query);
+
+  @override
+  List<Object?> get props => [query];
+}
+
+/// Event to go to next search result
+class SearchNextRequested extends PdfViewerEvent {
+  const SearchNextRequested();
+}
+
+/// Event to go to previous search result
+class SearchPreviousRequested extends PdfViewerEvent {
+  const SearchPreviousRequested();
+}
+
+/// Event to close search and clear search state
+class SearchClosed extends PdfViewerEvent {
+  const SearchClosed();
+}
+
+/// Event to remove a file from recent files list
+class RecentFileRemoved extends PdfViewerEvent {
+  final String filePath;
+
+  const RecentFileRemoved(this.filePath);
+
+  @override
+  List<Object?> get props => [filePath];
+}

@@ -6,11 +6,13 @@ import '../../models/recent_file.dart';
 class RecentFilesList extends StatelessWidget {
   final List<RecentFile> recentFiles;
   final Function(String) onFileSelected;
+  final Function(String)? onFileRemoved;
 
   const RecentFilesList({
     super.key,
     required this.recentFiles,
     required this.onFileSelected,
+    this.onFileRemoved,
   });
 
   String _formatDate(DateTime dateTime) {
@@ -104,7 +106,20 @@ class RecentFilesList extends StatelessWidget {
                 ),
               ],
             ),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Delete button
+                if (onFileRemoved != null)
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    tooltip: 'Remove from recent files',
+                    onPressed: () => onFileRemoved!(file.path),
+                    color: Colors.grey[600],
+                  ),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
             onTap: () => onFileSelected(file.path),
           ),
         );

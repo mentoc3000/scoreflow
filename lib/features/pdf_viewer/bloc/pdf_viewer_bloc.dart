@@ -6,7 +6,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:macos_secure_bookmarks/macos_secure_bookmarks.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import '../../../core/config/app_config.dart';
 import '../models/recent_file.dart';
+import '../models/search_result.dart';
 import '../repositories/recent_files_repository.dart';
 import 'pdf_viewer_event.dart';
 import 'pdf_viewer_state.dart';
@@ -24,6 +26,7 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
     on<OpenFileRequested>(_onOpenFileRequested);
     on<FileSelected>(_onFileSelected);
     on<RecentFileOpened>(_onRecentFileOpened);
+    on<RecentFileRemoved>(_onRecentFileRemoved);
     on<NextPageRequested>(_onNextPageRequested);
     on<PreviousPageRequested>(_onPreviousPageRequested);
     on<PageNumberChanged>(_onPageNumberChanged);
@@ -33,6 +36,14 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
     on<BookmarkSidebarToggled>(_onBookmarkSidebarToggled);
     on<NavigateBackRequested>(_onNavigateBackRequested);
     on<NavigateForwardRequested>(_onNavigateForwardRequested);
+    on<ZoomChanged>(_onZoomChanged);
+    on<ZoomInRequested>(_onZoomInRequested);
+    on<ZoomOutRequested>(_onZoomOutRequested);
+    on<ZoomResetRequested>(_onZoomResetRequested);
+    on<SearchQueryChanged>(_onSearchQueryChanged);
+    on<SearchNextRequested>(_onSearchNextRequested);
+    on<SearchPreviousRequested>(_onSearchPreviousRequested);
+    on<SearchClosed>(_onSearchClosed);
   }
 
   /// Loads recent files from the repository
@@ -48,15 +59,23 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
   /// Opens file picker dialog
   Future<void> _onOpenFileRequested(OpenFileRequested event, Emitter<PdfViewerState> emit) async {
     try {
+      // Get the last directory used
+      final String? lastDirectory = await _recentFilesRepository.getLastDirectory();
+
       final FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
         allowMultiple: false,
+        initialDirectory: lastDirectory,
       );
 
       if (result != null && result.files.isNotEmpty) {
         final String? filePath = result.files.first.path;
         if (filePath != null) {
+          // Save the directory for next time
+          final String directory = filePath.substring(0, filePath.lastIndexOf('/'));
+          await _recentFilesRepository.setLastDirectory(directory);
+
           add(FileSelected(filePath));
         }
       }
@@ -99,21 +118,54 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
     );
 
     String? resolvedPath;
-    if (recentFile?.bookmark != null) {
+    bool hasSecurityAccess = false;
+    // Only use bookmarks on macOS
+    if (Platform.isMacOS && recentFile?.bookmark != null) {
       debugPrint('Found bookmark, attempting to resolve...');
       try {
         final FileSystemEntity resolved = await _secureBookmarks.resolveBookmark(recentFile!.bookmark!);
         resolvedPath = resolved.path;
         debugPrint('Bookmark resolved to: $resolvedPath');
-        await _secureBookmarks.startAccessingSecurityScopedResource(File(resolvedPath));
-        debugPrint('Started accessing security-scoped resource');
+        hasSecurityAccess = await _secureBookmarks.startAccessingSecurityScopedResource(File(resolvedPath));
+        debugPrint('Security-scoped access granted: $hasSecurityAccess');
       } catch (e) {
         debugPrint('Bookmark resolution failed: $e');
         // Bookmark failed, will try direct access
       }
     }
 
+    // If bookmark resolution failed or we're not on macOS, use the original path
+    // and try to start security-scoped access directly
+    if (!hasSecurityAccess && Platform.isMacOS) {
+      try {
+        debugPrint('Attempting direct security-scoped access for: ${event.filePath}');
+        hasSecurityAccess = await _secureBookmarks.startAccessingSecurityScopedResource(File(event.filePath));
+        debugPrint('Direct security-scoped access granted: $hasSecurityAccess');
+        resolvedPath = event.filePath;
+      } catch (e) {
+        debugPrint('Direct security-scoped access failed: $e');
+      }
+    }
+
     await _loadPdfFile(resolvedPath ?? event.filePath, emit, isFromRecentFiles: true, bookmark: recentFile?.bookmark);
+  }
+
+  /// Handles removing a file from recent files list
+  Future<void> _onRecentFileRemoved(RecentFileRemoved event, Emitter<PdfViewerState> emit) async {
+    try {
+      await _recentFilesRepository.removeRecentFile(event.filePath);
+      final List<RecentFile> recentFiles = await _recentFilesRepository.getRecentFiles();
+
+      // Update the current state with the new recent files list
+      if (state is PdfViewerInitial) {
+        emit(PdfViewerInitial(recentFiles: recentFiles));
+      } else if (state is PdfViewerError) {
+        final PdfViewerError errorState = state as PdfViewerError;
+        emit(PdfViewerError(message: errorState.message, recentFiles: recentFiles));
+      }
+    } catch (e) {
+      debugPrint('Error removing recent file: $e');
+    }
   }
 
   /// Loads a PDF file from the given path
@@ -136,8 +188,21 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
       await _currentDocument?.dispose();
 
       debugPrint('Opening PDF document...');
-      // Open the PDF document
-      final PdfDocument document = await PdfDocument.openFile(filePath);
+
+      // For files with security-scoped access (recent files on macOS),
+      // read into memory to avoid file access issues
+      PdfDocument document;
+      if (isFromRecentFiles && Platform.isMacOS) {
+        debugPrint('Loading from memory for security-scoped file...');
+        final File file = File(filePath);
+        final Uint8List bytes = await file.readAsBytes();
+        debugPrint('Read ${bytes.length} bytes from file');
+        document = await PdfDocument.openData(bytes);
+      } else {
+        // Direct file access for new files
+        document = await PdfDocument.openFile(filePath);
+      }
+
       debugPrint('PDF opened successfully. Pages: ${document.pages.length}');
 
       // Verify the document has pages
@@ -153,8 +218,8 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
 
       // Create security-scoped bookmark if we don't have one already
       String? newBookmark = bookmark;
-      if (newBookmark == null && !isFromRecentFiles) {
-        // Only create bookmark when opening via file picker
+      if (newBookmark == null && !isFromRecentFiles && Platform.isMacOS) {
+        // Only create bookmark when opening via file picker on macOS
         try {
           newBookmark = await _secureBookmarks.bookmark(File(filePath));
           debugPrint('Created new bookmark for file');
@@ -197,9 +262,9 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
       debugPrint('Stack trace: $stackTrace');
 
       // If this is from recent files and first attempt, retry once after a delay
-      if (isFromRecentFiles && retryCount < 1) {
+      if (isFromRecentFiles && retryCount < AppConfig.maxFileAccessRetries) {
         debugPrint('Retrying after delay...');
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(AppConfig.fileAccessRetryDelay);
         return _loadPdfFile(
           filePath,
           emit,
@@ -355,6 +420,174 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
 
         emit(currentState.copyWith(currentPage: targetPage, navigationHistoryIndex: newIndex));
       }
+    }
+  }
+
+  /// Handles zoom level change
+  Future<void> _onZoomChanged(ZoomChanged event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+      // Clamp zoom between min and max levels from AppConfig
+      final double clampedZoom = event.zoomLevel.clamp(AppConfig.minZoomLevel, AppConfig.maxZoomLevel);
+      emit(currentState.copyWith(zoomLevel: clampedZoom));
+    }
+  }
+
+  /// Handles zoom in request
+  Future<void> _onZoomInRequested(ZoomInRequested event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+      final double newZoom = (currentState.zoomLevel + AppConfig.zoomStep).clamp(AppConfig.minZoomLevel, AppConfig.maxZoomLevel);
+      emit(currentState.copyWith(zoomLevel: newZoom));
+    }
+  }
+
+  /// Handles zoom out request
+  Future<void> _onZoomOutRequested(ZoomOutRequested event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+      final double newZoom = (currentState.zoomLevel - AppConfig.zoomStep).clamp(AppConfig.minZoomLevel, AppConfig.maxZoomLevel);
+      emit(currentState.copyWith(zoomLevel: newZoom));
+    }
+  }
+
+  /// Handles zoom reset request
+  Future<void> _onZoomResetRequested(ZoomResetRequested event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+      emit(currentState.copyWith(zoomLevel: AppConfig.defaultZoomLevel));
+    }
+  }
+
+  /// Handles search query change
+  Future<void> _onSearchQueryChanged(SearchQueryChanged event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+
+      if (event.query.isEmpty) {
+        // Clear search
+        emit(currentState.copyWith(
+          searchQuery: '',
+          searchResults: [],
+          currentSearchResultIndex: -1,
+          isSearching: false,
+        ));
+        return;
+      }
+
+      // Start searching
+      emit(currentState.copyWith(
+        searchQuery: event.query,
+        isSearching: true,
+      ));
+
+      try {
+        // Search through all pages
+        final List<SearchResult> allResults = [];
+
+        for (int i = 0; i < currentState.document.pages.length; i++) {
+          final PdfPage page = currentState.document.pages[i];
+
+          // Load text from page
+          try {
+            final PdfPageRawText? pageText = await page.loadText();
+            if (pageText == null) {
+              debugPrint('No text found on page ${i + 1}');
+              continue;
+            }
+            // Search for query in page text (case-insensitive)
+            final String text = pageText.fullText.toLowerCase();
+              final String query = event.query.toLowerCase();
+
+              int index = text.indexOf(query);
+              while (index != -1) {
+                allResults.add(SearchResult(
+                  pageNumber: i + 1,
+                  textIndex: index,
+                  text: event.query,
+              ));
+              index = text.indexOf(query, index + 1);
+            }
+          } catch (e) {
+            debugPrint('Error loading text from page ${i + 1}: $e');
+            // Continue with next page
+          }
+        }
+
+        emit(currentState.copyWith(
+          searchResults: allResults,
+          currentSearchResultIndex: allResults.isEmpty ? -1 : 0,
+          isSearching: false,
+        ));
+
+        // Navigate to first result if found
+        if (allResults.isNotEmpty) {
+          final int firstResultPage = allResults[0].pageNumber;
+          emit(_addToNavigationHistory(
+            currentState.copyWith(
+              searchResults: allResults,
+              currentSearchResultIndex: 0,
+              isSearching: false,
+            ),
+            firstResultPage,
+          ));
+        }
+      } catch (e) {
+        debugPrint('Error searching PDF: $e');
+        emit(currentState.copyWith(
+          searchResults: [],
+          currentSearchResultIndex: -1,
+          isSearching: false,
+        ));
+      }
+    }
+  }
+
+  /// Handles search next request
+  Future<void> _onSearchNextRequested(SearchNextRequested event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+
+      if (currentState.searchResults.isEmpty) return;
+
+      final int nextIndex = (currentState.currentSearchResultIndex + 1) % currentState.searchResults.length;
+      final int pageNumber = currentState.searchResults[nextIndex].pageNumber;
+
+      emit(_addToNavigationHistory(
+        currentState.copyWith(currentSearchResultIndex: nextIndex),
+        pageNumber,
+      ));
+    }
+  }
+
+  /// Handles search previous request
+  Future<void> _onSearchPreviousRequested(SearchPreviousRequested event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+
+      if (currentState.searchResults.isEmpty) return;
+
+      final int previousIndex = currentState.currentSearchResultIndex - 1;
+      final int wrappedIndex = previousIndex < 0 ? currentState.searchResults.length - 1 : previousIndex;
+      final int pageNumber = currentState.searchResults[wrappedIndex].pageNumber;
+
+      emit(_addToNavigationHistory(
+        currentState.copyWith(currentSearchResultIndex: wrappedIndex),
+        pageNumber,
+      ));
+    }
+  }
+
+  /// Handles search close request
+  Future<void> _onSearchClosed(SearchClosed event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+      emit(currentState.copyWith(
+        searchQuery: '',
+        searchResults: [],
+        currentSearchResultIndex: -1,
+        isSearching: false,
+      ));
     }
   }
 
