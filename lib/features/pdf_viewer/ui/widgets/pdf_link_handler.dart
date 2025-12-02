@@ -64,31 +64,14 @@ class _PdfLinkHandlerState extends State<PdfLinkHandler> {
         enableAutoLinkDetection: true,
       );
 
-      debugPrint(
-        'Page ${widget.pageNumber}: Found ${links.length} total links',
-      );
-
       // Filter to only internal links
       final List<PdfLink> internalLinks = links
           .where((link) => link.dest != null)
           .toList();
 
       debugPrint(
-        'Page ${widget.pageNumber}: ${internalLinks.length} internal links',
+        'Page ${widget.pageNumber}: Found ${internalLinks.length} internal links (${links.length} total)',
       );
-
-      // Debug: print link details
-      for (int i = 0; i < internalLinks.length; i++) {
-        final link = internalLinks[i];
-        debugPrint(
-          '  Link $i: dest page=${link.dest?.pageNumber}, rects=${link.rects.length}',
-        );
-        for (final rect in link.rects) {
-          debugPrint(
-            '    Rect: L=${rect.left}, T=${rect.top}, R=${rect.right}, B=${rect.bottom}',
-          );
-        }
-      }
 
       if (mounted) {
         setState(() {
@@ -148,13 +131,6 @@ class _PdfLinkHandlerState extends State<PdfLinkHandler> {
     final double pdfX = (widgetPoint.dx - offsetX) / scale;
     final double pdfY = (widgetPoint.dy - offsetY) / scale;
 
-    debugPrint('Widget tap at (${widgetPoint.dx}, ${widgetPoint.dy})');
-    debugPrint('Converted to PDF coords: ($pdfX, $pdfY)');
-    debugPrint(
-      'Page size: ${pageWidth}x$pageHeight, Widget size: ${widget.pageSize.width}x${widget.pageSize.height}',
-    );
-    debugPrint('Scale: $scale, Offset: ($offsetX, $offsetY)');
-
     for (final PdfRect rect in link.rects) {
       // PdfRect coordinates: origin is bottom-left, Y increases upward
       // We need to convert to Flutter coordinates: origin is top-left, Y increases downward
@@ -163,15 +139,10 @@ class _PdfLinkHandlerState extends State<PdfLinkHandler> {
       final double rectTop = pageHeight - rect.top; // Flip Y coordinate
       final double rectBottom = pageHeight - rect.bottom; // Flip Y coordinate
 
-      debugPrint(
-        '  Checking rect: L=$rectLeft, T=$rectTop, R=$rectRight, B=$rectBottom (Flutter coords)',
-      );
-
       if (pdfX >= rectLeft &&
           pdfX <= rectRight &&
           pdfY >= rectTop &&
           pdfY <= rectBottom) {
-        debugPrint('  HIT!');
         return true;
       }
     }
@@ -223,16 +194,14 @@ class _PdfLinkHandlerState extends State<PdfLinkHandler> {
         onTapUp: (TapUpDetails details) {
           final Offset localPosition = details.localPosition;
 
-          debugPrint('\n=== Link tap detected ===');
-
           // Find which internal link was tapped
           final PdfLink? link = _findLinkAtPosition(localPosition);
           if (link != null) {
+            debugPrint(
+              'Link tapped on page ${widget.pageNumber}, navigating to page ${link.dest?.pageNumber}',
+            );
             _handleLinkTap(link);
-            return;
           }
-
-          debugPrint('No link found at tap location');
         },
         child: IgnorePointer(
           child: SizedBox(

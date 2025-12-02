@@ -1,0 +1,169 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../bloc/pdf_viewer_bloc.dart';
+import '../../bloc/pdf_viewer_event.dart';
+
+/// Widget for search bar with controls
+class SearchBar extends StatefulWidget {
+  final String? query;
+  final int currentResultIndex;
+  final int totalResults;
+  final bool isSearching;
+  final VoidCallback onClose;
+
+  const SearchBar({
+    super.key,
+    this.query,
+    required this.currentResultIndex,
+    required this.totalResults,
+    required this.isSearching,
+    required this.onClose,
+  });
+
+  @override
+  State<SearchBar> createState() => _SearchBarState();
+}
+
+class _SearchBarState extends State<SearchBar> {
+  late TextEditingController _searchController;
+  final FocusNode _searchFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController(text: widget.query ?? '');
+    // Request focus when search bar opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _searchFocusNode.requestFocus();
+    });
+  }
+
+  @override
+  void didUpdateWidget(SearchBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.query != oldWidget.query && widget.query != _searchController.text) {
+      _searchController.text = widget.query ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _handleSubmit() {
+    final String query = _searchController.text.trim();
+    if (query.isNotEmpty) {
+      context.read<PdfViewerBloc>().add(SearchQueryChanged(query));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool hasResults = widget.totalResults > 0;
+    final bool canNavigate = hasResults && !widget.isSearching;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[300]!),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Search icon
+          const Icon(Icons.search, size: 20),
+          const SizedBox(width: 8),
+
+          // Search input field
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              decoration: const InputDecoration(
+                hintText: 'Search in document...',
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(vertical: 8),
+              ),
+              onSubmitted: (_) => _handleSubmit(),
+              onChanged: (String value) {
+                if (value.isEmpty) {
+                  context.read<PdfViewerBloc>().add(const SearchClosed());
+                }
+              },
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
+          // Loading indicator or result count
+          if (widget.isSearching)
+            const SizedBox(
+              width: 80,
+              child: Center(
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (hasResults)
+            SizedBox(
+              width: 80,
+              child: Text(
+                '${widget.currentResultIndex + 1} of ${widget.totalResults}',
+                style: const TextStyle(fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+            )
+          else if (_searchController.text.isNotEmpty)
+            const SizedBox(
+              width: 80,
+              child: Text(
+                'No results',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            )
+          else
+            const SizedBox(width: 80),
+
+          // Previous result button
+          IconButton(
+            icon: const Icon(Icons.keyboard_arrow_up),
+            tooltip: 'Previous (Shift+Enter)',
+            iconSize: 20,
+            onPressed: canNavigate
+                ? () => context.read<PdfViewerBloc>().add(const SearchPreviousRequested())
+                : null,
+          ),
+
+          // Next result button
+          IconButton(
+            icon: const Icon(Icons.keyboard_arrow_down),
+            tooltip: 'Next (Enter)',
+            iconSize: 20,
+            onPressed: canNavigate
+                ? () => context.read<PdfViewerBloc>().add(const SearchNextRequested())
+                : null,
+          ),
+
+          // Close button
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: 'Close search (Esc)',
+            iconSize: 20,
+            onPressed: widget.onClose,
+          ),
+        ],
+      ),
+    );
+  }
+}

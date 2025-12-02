@@ -7,6 +7,7 @@ import 'bookmark_list_item.dart';
 class BookmarkSidebar extends StatefulWidget {
   final List<PdfBookmarkItem> bookmarks;
   final bool isOpen;
+  final double width;
   final VoidCallback onToggle;
   final Function(int pageNumber) onBookmarkTap;
   final int currentPage;
@@ -15,6 +16,7 @@ class BookmarkSidebar extends StatefulWidget {
     super.key,
     required this.bookmarks,
     required this.isOpen,
+    required this.width,
     required this.onToggle,
     required this.onBookmarkTap,
     required this.currentPage,
@@ -97,7 +99,7 @@ class _BookmarkSidebarState extends State<BookmarkSidebar> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeInOut,
-      width: widget.isOpen ? 300 : 0,
+      width: widget.isOpen ? widget.width : 0,
       child: widget.isOpen
           ? Container(
               decoration: BoxDecoration(

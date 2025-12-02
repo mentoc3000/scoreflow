@@ -3,12 +3,13 @@ import 'package:pdfrx/pdfrx.dart';
 
 import 'pdf_link_handler.dart';
 
-/// Widget for rendering a single PDF page
+/// Widget for rendering a single PDF page with text selection support
 class PdfPageWidget extends StatelessWidget {
   final PdfDocument document;
   final int pageNumber;
   final bool isCurrentPage;
   final Function(int)? onLinkTap;
+  final bool shouldLoadLinks;
 
   const PdfPageWidget({
     super.key,
@@ -16,6 +17,7 @@ class PdfPageWidget extends StatelessWidget {
     required this.pageNumber,
     this.isCurrentPage = false,
     this.onLinkTap,
+    this.shouldLoadLinks = true,
   });
 
   @override
@@ -43,18 +45,22 @@ class PdfPageWidget extends StatelessWidget {
         builder: (BuildContext context, BoxConstraints constraints) {
           return Stack(
             children: [
-              PdfPageView(
-                document: document,
-                pageNumber: pageNumber,
-                alignment: Alignment.center,
+              // PDF page with text selection enabled
+              SelectionArea(
+                child: PdfPageView(
+                  document: document,
+                  pageNumber: pageNumber,
+                  alignment: Alignment.center,
+                ),
               ),
-              // Link handler overlay
-              PdfLinkHandler(
-                document: document,
-                pageNumber: pageNumber,
-                pageSize: Size(constraints.maxWidth, constraints.maxHeight),
-                onInternalLinkTap: onLinkTap,
-              ),
+              // Only load link handler if shouldLoadLinks is true
+              if (shouldLoadLinks)
+                PdfLinkHandler(
+                  document: document,
+                  pageNumber: pageNumber,
+                  pageSize: Size(constraints.maxWidth, constraints.maxHeight),
+                  onInternalLinkTap: onLinkTap,
+                ),
             ],
           );
         },

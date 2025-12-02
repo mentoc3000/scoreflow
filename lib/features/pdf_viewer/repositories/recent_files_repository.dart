@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/config/app_config.dart';
 import '../models/recent_file.dart';
 
 /// Repository for managing recently opened PDF files
 class RecentFilesRepository {
   static const String _recentFilesKey = 'recent_files';
-  static const int _maxRecentFiles = 10;
+  static const String _lastDirectoryKey = 'last_directory';
 
   final SharedPreferences _prefs;
 
@@ -41,8 +42,8 @@ class RecentFilesRepository {
     recentFiles.insert(0, file);
 
     // Keep only the last N files
-    if (recentFiles.length > _maxRecentFiles) {
-      recentFiles.removeRange(_maxRecentFiles, recentFiles.length);
+    if (recentFiles.length > AppConfig.maxRecentFiles) {
+      recentFiles.removeRange(AppConfig.maxRecentFiles, recentFiles.length);
     }
 
     // Save to preferences
@@ -66,5 +67,15 @@ class RecentFilesRepository {
         .map((f) => f.toJson())
         .toList();
     await _prefs.setString(_recentFilesKey, json.encode(jsonList));
+  }
+
+  /// Gets the last directory used in the file picker
+  Future<String?> getLastDirectory() async {
+    return _prefs.getString(_lastDirectoryKey);
+  }
+
+  /// Saves the last directory used in the file picker
+  Future<void> setLastDirectory(String directory) async {
+    await _prefs.setString(_lastDirectoryKey, directory);
   }
 }
