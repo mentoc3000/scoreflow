@@ -30,11 +30,27 @@ jobs:
       - name: Build macOS release
         run: flutter build macos --release
 
-      - name: Create zip archive
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Create DMG
         run: |
-          cd build/macos/Build/Products/Release
-          zip -r scoreflow-macos.zip scoreflow.app
-          mv scoreflow-macos.zip $GITHUB_WORKSPACE/
+          create-dmg \
+            --volname "ScoreFlow" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "scoreflow.app" 175 190 \
+            --hide-extension "scoreflow.app" \
+            --app-drop-link 425 190 \
+            --no-internet-enable \
+            "scoreflow-macos.dmg" \
+            "build/macos/Build/Products/Release/"
+
+      - name: Verify DMG file exists
+        run: |
+          ls -lh scoreflow-macos.dmg
+          echo "DMG file size: $(du -h scoreflow-macos.dmg | cut -f1)"
 
       - name: Extract version from tag
         id: version
@@ -48,14 +64,15 @@ jobs:
             ## ScoreFlow v${{ steps.version.outputs.VERSION }}
 
             ### Installation
-            1. Download `scoreflow-macos.zip`
-            2. Extract the zip file
-            3. Move `scoreflow.app` to your Applications folder
+            1. Download `scoreflow-macos.dmg`
+            2. Open the DMG file
+            3. Drag `scoreflow.app` to the Applications folder
             4. Right-click and select "Open" the first time to bypass Gatekeeper
 
             ### Changes
             See the commit history for details of changes in this release.
-          files: scoreflow-macos.zip
+          files: |
+            scoreflow-macos.dmg
           draft: false
           prerelease: false
         env:
