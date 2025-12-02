@@ -147,3 +147,13 @@ class SearchPreviousRequested extends PdfViewerEvent {
 class SearchClosed extends PdfViewerEvent {
   const SearchClosed();
 }
+
+/// Event to remove a file from recent files list
+class RecentFileRemoved extends PdfViewerEvent {
+  final String filePath;
+
+  const RecentFileRemoved(this.filePath);
+
+  @override
+  List<Object?> get props => [filePath];
+}

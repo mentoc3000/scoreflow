@@ -4,11 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../services/background_page_renderer.dart';
+import '../../services/memory_monitor.dart';
+import '../../services/page_cache_manager.dart';
 import 'pdf_page_widget.dart';
 
 /// Widget for displaying PDF with two-page sliding view
 /// Single page PDFs show one centered page
 /// Multi-page PDFs show two pages side by side with smooth individual page sliding
+/// Includes page caching, background rendering, and memory management
 class MultiPageViewer extends StatefulWidget {
   final PdfDocument document;
   final int currentPage;
@@ -16,6 +20,7 @@ class MultiPageViewer extends StatefulWidget {
   final Function(int) onPageChanged;
   final Function(int)? onLinkTap;
   final double zoomLevel;
+  final String? documentId; // Unique identifier for caching
 
   const MultiPageViewer({
     super.key,
@@ -25,6 +30,7 @@ class MultiPageViewer extends StatefulWidget {
     required this.onPageChanged,
     this.onLinkTap,
     this.zoomLevel = 1.0,
+    this.documentId,
   });
 
   @override
@@ -73,6 +79,11 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
   Set<int> _visiblePages = {};
   final double _gap = AppConfig.pageGap;
 
+  // Performance services
+  late PageCacheManager _cacheManager;
+  late BackgroundPageRenderer _backgroundRenderer;
+  late MemoryMonitor _memoryMonitor;
+
   @override
   void initState() {
     super.initState();
@@ -81,7 +92,26 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
       totalPages: widget.totalPages,
       bufferPages: AppConfig.searchBufferPages,
     );
+
+    // Initialize performance services FIRST (before calling _updateVisiblePages)
+    _cacheManager = PageCacheManager();
+    _backgroundRenderer = BackgroundPageRenderer();
+    _memoryMonitor = MemoryMonitor();
+
+    // Register memory pressure callback
+    _memoryMonitor.registerCallback(() {
+      _cacheManager.handleMemoryPressure();
+    });
+
+    // Start memory monitoring
+    _memoryMonitor.startMonitoring();
+
+    // Now it's safe to call methods that depend on the services
     _updateVisiblePages(widget.currentPage);
+
+    // Schedule initial background rendering
+    _scheduleBackgroundRendering();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.currentPage > 1 && _pageWidth > 0) {
         _scrollToPage(widget.currentPage, animate: false);
@@ -95,6 +125,21 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
       setState(() {
         _visiblePages = newVisiblePages;
       });
+    }
+
+    // Schedule background rendering when visible pages change
+    _scheduleBackgroundRendering();
+  }
+
+  /// Schedule background rendering for adjacent pages
+  void _scheduleBackgroundRendering() {
+    if (widget.documentId != null) {
+      _backgroundRenderer.scheduleRendering(
+        document: widget.document,
+        documentId: widget.documentId!,
+        currentPage: widget.currentPage,
+        totalPages: widget.totalPages,
+      );
     }
   }
 
@@ -170,6 +215,16 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
   @override
   void dispose() {
     _scrollController.dispose();
+
+    // Cleanup performance services
+    _backgroundRenderer.dispose();
+    _memoryMonitor.dispose();
+
+    // Clear cache for this document if we have an ID
+    if (widget.documentId != null) {
+      _cacheManager.clearDocumentCache(widget.documentId!);
+    }
+
     super.dispose();
   }
 

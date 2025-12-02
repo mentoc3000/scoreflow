@@ -33,4 +33,10 @@ class AppConfig {
   // File Access
   static const Duration fileAccessRetryDelay = Duration(milliseconds: 500);
   static const int maxFileAccessRetries = 1;
+
+  // Page Caching Configuration
+  static const int maxCachedPages = 10; // Maximum number of pages to keep in cache
+  static const int preRenderBufferPages = 2; // Number of pages to pre-render ahead/behind
+  static const Duration cacheEvictionDelay = Duration(seconds: 30); // Delay before evicting old pages
+  static const int memoryPressureThresholdMB = 500; // Memory threshold for cache eviction (MB)
 }

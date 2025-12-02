@@ -54,6 +54,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     onFileSelected: (String path) {
                       context.read<PdfViewerBloc>().add(RecentFileOpened(path));
                     },
+                    onFileRemoved: (String path) {
+                      context.read<PdfViewerBloc>().add(RecentFileRemoved(path));
+                    },
                   ),
                 ),
               ],
@@ -92,6 +95,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       recentFiles: state.recentFiles,
                       onFileSelected: (String path) {
                         context.read<PdfViewerBloc>().add(RecentFileOpened(path));
+                      },
+                      onFileRemoved: (String path) {
+                        context.read<PdfViewerBloc>().add(RecentFileRemoved(path));
                       },
                     ),
                   ),

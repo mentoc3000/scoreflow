@@ -218,6 +218,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                             currentPage: state.currentPage,
                             totalPages: state.totalPages,
                             zoomLevel: 1.0,
+                            documentId: state.filePath, // Use file path as document ID
                             onPageChanged: (int pageNumber) {
                               context.read<PdfViewerBloc>().add(PageViewChanged(pageNumber));
                             },

@@ -26,6 +26,7 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
     on<OpenFileRequested>(_onOpenFileRequested);
     on<FileSelected>(_onFileSelected);
     on<RecentFileOpened>(_onRecentFileOpened);
+    on<RecentFileRemoved>(_onRecentFileRemoved);
     on<NextPageRequested>(_onNextPageRequested);
     on<PreviousPageRequested>(_onPreviousPageRequested);
     on<PageNumberChanged>(_onPageNumberChanged);
@@ -147,6 +148,24 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
     }
 
     await _loadPdfFile(resolvedPath ?? event.filePath, emit, isFromRecentFiles: true, bookmark: recentFile?.bookmark);
+  }
+
+  /// Handles removing a file from recent files list
+  Future<void> _onRecentFileRemoved(RecentFileRemoved event, Emitter<PdfViewerState> emit) async {
+    try {
+      await _recentFilesRepository.removeRecentFile(event.filePath);
+      final List<RecentFile> recentFiles = await _recentFilesRepository.getRecentFiles();
+
+      // Update the current state with the new recent files list
+      if (state is PdfViewerInitial) {
+        emit(PdfViewerInitial(recentFiles: recentFiles));
+      } else if (state is PdfViewerError) {
+        final PdfViewerError errorState = state as PdfViewerError;
+        emit(PdfViewerError(message: errorState.message, recentFiles: recentFiles));
+      }
+    } catch (e) {
+      debugPrint('Error removing recent file: $e');
+    }
   }
 
   /// Loads a PDF file from the given path
