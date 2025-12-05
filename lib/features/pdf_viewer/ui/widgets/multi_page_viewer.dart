@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -8,6 +9,17 @@ import '../../services/background_page_renderer.dart';
 import '../../services/memory_monitor.dart';
 import '../../services/page_cache_manager.dart';
 import 'pdf_page_widget.dart';
+
+/// Custom scroll behavior that enables mouse drag scrolling on desktop
+class _DragScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.mouse,
+    PointerDeviceKind.stylus,
+    PointerDeviceKind.trackpad,
+  };
+}
 
 /// Widget for displaying PDF with two-page sliding view
 /// Single page PDFs show one centered page
@@ -262,7 +274,8 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
       color: Colors.grey[300],
       child: NotificationListener<ScrollNotification>(
         onNotification: (notification) {
-          if (notification is ScrollEndNotification) {
+          // Update page on scroll update (during drag) and scroll end
+          if (notification is ScrollUpdateNotification || notification is ScrollEndNotification) {
             _onScroll();
           }
           return false;
@@ -291,38 +304,42 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
             // Ensure padding is never negative (when viewport is too narrow)
             final double leftPadding = math.max(0, (constraints.maxWidth - (2 * pageWidth + _gap)) / 2);
 
-            return SingleChildScrollView(
-              controller: _scrollController,
-              scrollDirection: Axis.horizontal,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: leftPadding, // Center two pages
-                  right: leftPadding,
-                  top: AppConfig.pagePadding,
-                  bottom: AppConfig.pagePadding,
-                ),
-                child: Row(
-                  children: List.generate(widget.totalPages, (index) {
-                    final int pageNumber = index + 1;
-                    final bool shouldLoadLinks = _visiblePages.contains(pageNumber);
+            return ScrollConfiguration(
+              behavior: _DragScrollBehavior(),
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: leftPadding, // Center two pages
+                    right: leftPadding,
+                    top: AppConfig.pagePadding,
+                    bottom: AppConfig.pagePadding,
+                  ),
+                  child: Row(
+                    children: List.generate(widget.totalPages, (index) {
+                      final int pageNumber = index + 1;
+                      final bool shouldLoadLinks = _visiblePages.contains(pageNumber);
 
-                    return Row(
-                      children: [
-                        SizedBox(
-                          width: pageWidth,
-                          height: availableHeight,
-                          child: PdfPageWidget(
-                            document: widget.document,
-                            pageNumber: pageNumber,
-                            isCurrentPage: pageNumber == widget.currentPage,
-                            onLinkTap: widget.onLinkTap,
-                            shouldLoadLinks: shouldLoadLinks,
+                      return Row(
+                        children: [
+                          SizedBox(
+                            width: pageWidth,
+                            height: availableHeight,
+                            child: PdfPageWidget(
+                              document: widget.document,
+                              pageNumber: pageNumber,
+                              isCurrentPage: pageNumber == widget.currentPage,
+                              onLinkTap: widget.onLinkTap,
+                              shouldLoadLinks: shouldLoadLinks,
+                            ),
                           ),
-                        ),
-                        if (index < widget.totalPages - 1) SizedBox(width: _gap),
-                      ],
-                    );
-                  }),
+                          if (index < widget.totalPages - 1) SizedBox(width: _gap),
+                        ],
+                      );
+                    }),
+                  ),
                 ),
               ),
             );
