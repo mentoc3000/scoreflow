@@ -358,7 +358,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
               if (isFirstLayout) {
                 // On first layout, wait for rendering to complete then set correct position
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  WidgetsBinding.instance.addPostFrameCallback((__) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
                     _initialLayoutComplete = true;
 
                     // Delay to let any auto-scroll settle, then correct position if needed
