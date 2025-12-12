@@ -260,8 +260,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
     final double scrollPosition = _scrollController.offset;
 
     // Calculate current page based on scroll position
-    final int newPage = ((scrollPosition / (_pageWidth + _gap)).round() + 1)
-        .clamp(1, widget.totalPages);
+    final int newPage = ((scrollPosition / (_pageWidth + _gap)).round() + 1).clamp(1, widget.totalPages);
 
     if (newPage != widget.currentPage && newPage >= 1 && newPage <= widget.totalPages) {
       setState(() {
