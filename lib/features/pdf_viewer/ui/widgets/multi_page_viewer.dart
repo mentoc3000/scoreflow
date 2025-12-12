@@ -92,7 +92,8 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
   bool _pendingScrollAnimate = false; // Whether pending scroll should animate
   bool _initialLayoutComplete = false; // Track if initial layout is done
   bool _userIsDragging = false; // Track if user is actively dragging
-  bool _isAnimating = false; // Track if we're programmatically animating
+  final List<_QueuedScroll> _scrollQueue = []; // Queue for rapid page advances
+  bool _isProcessingQueue = false; // Whether we're currently processing the queue
 
   // Performance services
   late PageCacheManager _cacheManager;
@@ -175,6 +176,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
   ///
   /// When [goingForward] is provided, corrects the scroll position before animating
   /// to ensure smooth directional scrolling even when auto-scroll has moved the view.
+  /// Animated scrolls are queued if an animation is already in progress.
   void _scrollToPage(int pageNumber, {required bool animate, bool? goingForward}) {
     if (!_scrollController.hasClients) return;
 
@@ -185,7 +187,17 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
       return;
     }
 
-    // Calculate target scroll position: page N -> (N-1) * step
+    // If already animating, queue this scroll request for sequential execution
+    if (animate && _isProcessingQueue) {
+      _scrollQueue.add(_QueuedScroll(pageNumber, goingForward));
+      return;
+    }
+
+    _executeScroll(pageNumber, animate: animate, goingForward: goingForward);
+  }
+
+  /// Executes a scroll immediately without queueing.
+  void _executeScroll(int pageNumber, {required bool animate, bool? goingForward}) {
     final double step = _pageWidth + _gap;
     final double targetScroll = (pageNumber - 1) * step;
     final double maxScroll = _scrollController.position.maxScrollExtent;
@@ -195,6 +207,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
     // Already at target position
     if ((currentOffset - clampedScroll).abs() < 1.0) {
       _pendingScrollPage = null;
+      _processNextInQueue();
       return;
     }
 
@@ -212,20 +225,26 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
         }
       }
 
-      _isAnimating = true;
+      _isProcessingQueue = true;
       _scrollController
           .animateTo(clampedScroll, duration: AppConfig.scrollAnimationDuration, curve: Curves.easeInOut)
-          .then((_) {
-            // Brief delay before clearing flag to ignore post-animation adjustments
-            Future.delayed(const Duration(milliseconds: 100), () {
-              _isAnimating = false;
-            });
-          });
+          .then((_) => _processNextInQueue());
     } else {
       _scrollController.jumpTo(clampedScroll);
     }
 
     _pendingScrollPage = null;
+  }
+
+  /// Processes the next queued scroll, if any.
+  void _processNextInQueue() {
+    if (_scrollQueue.isEmpty) {
+      _isProcessingQueue = false;
+      return;
+    }
+
+    final _QueuedScroll next = _scrollQueue.removeAt(0);
+    _executeScroll(next.pageNumber, animate: true, goingForward: next.goingForward);
   }
 
   void _onScroll() {
@@ -234,9 +253,9 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
     // Don't process scroll events until initial layout is complete
     if (!_initialLayoutComplete) return;
 
-    // Only process scrolls from user dragging or our own animations
-    // Ignore automatic scroll adjustments from the framework
-    if (!_userIsDragging && !_isAnimating) return;
+    // Only change pages when USER is dragging, not during programmatic animations
+    // During animations, the page is already set by the parent widget
+    if (!_userIsDragging) return;
 
     final double scrollPosition = _scrollController.offset;
 
@@ -417,4 +436,12 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
       ),
     );
   }
+}
+
+/// Represents a queued scroll request for rapid page advances.
+class _QueuedScroll {
+  final int pageNumber;
+  final bool? goingForward;
+
+  _QueuedScroll(this.pageNumber, this.goingForward);
 }
