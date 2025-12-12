@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -90,6 +88,12 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
   late _PageVisibilityTracker _visibilityTracker;
   Set<int> _visiblePages = {};
   final double _gap = AppConfig.pageGap;
+  int? _pendingScrollPage; // Page to scroll to once layout is complete
+  bool _pendingScrollAnimate = false; // Whether pending scroll should animate
+  bool _initialLayoutComplete = false; // Track if initial layout is done
+  bool _userIsDragging = false; // Track if user is actively dragging
+  final List<_QueuedScroll> _scrollQueue = []; // Queue for rapid page advances
+  bool _isProcessingQueue = false; // Whether we're currently processing the queue
 
   // Performance services
   late PageCacheManager _cacheManager;
@@ -99,7 +103,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
+    _scrollController = ScrollController(initialScrollOffset: 0.0);
     _visibilityTracker = _PageVisibilityTracker(
       totalPages: widget.totalPages,
       bufferPages: AppConfig.searchBufferPages,
@@ -123,12 +127,6 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
 
     // Schedule initial background rendering
     _scheduleBackgroundRendering();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.currentPage > 1 && _pageWidth > 0) {
-        _scrollToPage(widget.currentPage, animate: false);
-      }
-    });
   }
 
   void _updateVisiblePages(int currentPage) {
@@ -160,7 +158,8 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.currentPage != widget.currentPage && !_isUpdatingFromExternal) {
-      _scrollToPage(widget.currentPage, animate: true);
+      final bool goingForward = widget.currentPage > oldWidget.currentPage;
+      _scrollToPage(widget.currentPage, animate: true, goingForward: goingForward);
       _updateVisiblePages(widget.currentPage);
     }
 
@@ -173,40 +172,95 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
     }
   }
 
-  void _scrollToPage(int pageNumber, {required bool animate}) {
-    if (!_scrollController.hasClients || _pageWidth == 0) return;
+  /// Scrolls to the specified page number.
+  ///
+  /// When [goingForward] is provided, corrects the scroll position before animating
+  /// to ensure smooth directional scrolling even when auto-scroll has moved the view.
+  /// Animated scrolls are queued if an animation is already in progress.
+  void _scrollToPage(int pageNumber, {required bool animate, bool? goingForward}) {
+    if (!_scrollController.hasClients) return;
 
-    // Calculate scroll position so current page is on left, next page on right, both centered
-    // Each page position = (page_index * pageWidth) + (page_index * gap)
-    // For page N (1-indexed), we want to scroll to position (N-1) * (pageWidth + gap)
-    final double targetScroll = (pageNumber - 1) * (_pageWidth + _gap);
+    // If page width isn't ready yet, queue the scroll for later
+    if (_pageWidth == 0) {
+      _pendingScrollPage = pageNumber;
+      _pendingScrollAnimate = animate;
+      return;
+    }
+
+    // If already animating, queue this scroll request for sequential execution
+    if (animate && _isProcessingQueue) {
+      _scrollQueue.add(_QueuedScroll(pageNumber, goingForward));
+      return;
+    }
+
+    _executeScroll(pageNumber, animate: animate, goingForward: goingForward);
+  }
+
+  /// Executes a scroll immediately without queueing.
+  void _executeScroll(int pageNumber, {required bool animate, bool? goingForward}) {
+    final double step = _pageWidth + _gap;
+    final double targetScroll = (pageNumber - 1) * step;
     final double maxScroll = _scrollController.position.maxScrollExtent;
-
-    // Use maxScroll for the last page to show it properly positioned
     final double clampedScroll = targetScroll >= maxScroll ? maxScroll : targetScroll;
+    final double currentOffset = _scrollController.offset;
+
+    // Already at target position
+    if ((currentOffset - clampedScroll).abs() < 1.0) {
+      _pendingScrollPage = null;
+      _processNextInQueue();
+      return;
+    }
 
     if (animate) {
-      _scrollController.animateTo(clampedScroll, duration: AppConfig.scrollAnimationDuration, curve: Curves.easeInOut);
+      // If direction is known, correct scroll position before animating
+      // This handles cases where auto-scroll moved the view to the wrong position
+      if (goingForward != null) {
+        final double expectedStart = goingForward
+            ? (clampedScroll - step).clamp(0.0, maxScroll)
+            : (clampedScroll + step).clamp(0.0, maxScroll);
+
+        // If current position is off by more than half a page, fix it first
+        if ((currentOffset - expectedStart).abs() > step * 0.5) {
+          _scrollController.jumpTo(expectedStart);
+        }
+      }
+
+      _isProcessingQueue = true;
+      _scrollController
+          .animateTo(clampedScroll, duration: AppConfig.scrollAnimationDuration, curve: Curves.easeInOut)
+          .then((_) => _processNextInQueue());
     } else {
       _scrollController.jumpTo(clampedScroll);
     }
+
+    _pendingScrollPage = null;
+  }
+
+  /// Processes the next queued scroll, if any.
+  void _processNextInQueue() {
+    if (_scrollQueue.isEmpty) {
+      _isProcessingQueue = false;
+      return;
+    }
+
+    final _QueuedScroll next = _scrollQueue.removeAt(0);
+    _executeScroll(next.pageNumber, animate: true, goingForward: next.goingForward);
   }
 
   void _onScroll() {
     if (!_scrollController.hasClients || _pageWidth == 0) return;
 
-    final double scrollPosition = _scrollController.offset;
-    final double maxScroll = _scrollController.position.maxScrollExtent;
+    // Don't process scroll events until initial layout is complete
+    if (!_initialLayoutComplete) return;
 
-    // If we're at max scroll, we're on the last page
-    int newPage;
-    if ((maxScroll - scrollPosition).abs() < 1.0) {
-      newPage = widget.totalPages;
-    } else {
-      // Calculate page based on scroll position accounting for gaps
-      // Each page takes up (pageWidth + gap) of horizontal space
-      newPage = (scrollPosition / (_pageWidth + _gap)).round() + 1;
-    }
+    // Only change pages when USER is dragging, not during programmatic animations
+    // During animations, the page is already set by the parent widget
+    if (!_userIsDragging) return;
+
+    final double scrollPosition = _scrollController.offset;
+
+    // Calculate current page based on scroll position
+    final int newPage = ((scrollPosition / (_pageWidth + _gap)).round() + 1).clamp(1, widget.totalPages);
 
     if (newPage != widget.currentPage && newPage >= 1 && newPage <= widget.totalPages) {
       setState(() {
@@ -274,7 +328,15 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
       color: Colors.grey[300],
       child: NotificationListener<ScrollNotification>(
         onNotification: (notification) {
-          // Update page on scroll update (during drag) and scroll end
+          // Track user drag state for scroll event filtering
+          if (notification is ScrollStartNotification) {
+            if (notification.dragDetails != null) {
+              _userIsDragging = true;
+            }
+          } else if (notification is ScrollEndNotification) {
+            _userIsDragging = false;
+          }
+
           if (notification is ScrollUpdateNotification || notification is ScrollEndNotification) {
             _onScroll();
           }
@@ -288,32 +350,57 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
             final double pageWidth = basePageWidth * widget.zoomLevel; // Apply zoom level
 
             // Detect page width change (screen resize or zoom) and update scroll position
-            if (pageWidth != _lastPageWidth && _lastPageWidth > 0) {
+            if (pageWidth != _lastPageWidth) {
+              final bool isFirstLayout = _lastPageWidth == 0;
               _lastPageWidth = pageWidth;
               _pageWidth = pageWidth;
-              // Schedule scroll position update after build
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _scrollToPage(widget.currentPage, animate: false);
-              });
-            } else {
-              _lastPageWidth = pageWidth;
-              _pageWidth = pageWidth;
+
+              if (isFirstLayout) {
+                // On first layout, wait for rendering to complete then set correct position
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _initialLayoutComplete = true;
+
+                    // Delay to let any auto-scroll settle, then correct position if needed
+                    Future.delayed(const Duration(milliseconds: 500), () {
+                      if (mounted && _pendingScrollPage == null) {
+                        final double correctPosition = (widget.currentPage - 1) * (_pageWidth + _gap);
+                        if ((_scrollController.offset - correctPosition).abs() > 1.0) {
+                          _scrollController.jumpTo(correctPosition);
+                        }
+                      } else if (_pendingScrollPage != null) {
+                        _scrollToPage(_pendingScrollPage!, animate: _pendingScrollAnimate);
+                      }
+                    });
+                  });
+                });
+              } else {
+                // For resize/zoom, update scroll position immediately
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_pendingScrollPage != null) {
+                    _scrollToPage(_pendingScrollPage!, animate: _pendingScrollAnimate);
+                  } else {
+                    _scrollToPage(widget.currentPage, animate: false);
+                  }
+                });
+              }
             }
 
             // Store the left padding for scroll calculations
             // Ensure padding is never negative (when viewport is too narrow)
-            final double leftPadding = math.max(0, (constraints.maxWidth - (2 * pageWidth + _gap)) / 2);
+            final double leftPadding = (constraints.maxWidth - (2 * pageWidth + _gap)) / 2;
+            final double clampedLeftPadding = leftPadding > 0 ? leftPadding : 0;
 
             return ScrollConfiguration(
               behavior: _DragScrollBehavior(),
               child: SingleChildScrollView(
                 controller: _scrollController,
                 scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
+                physics: const ClampingScrollPhysics(),
                 child: Padding(
                   padding: EdgeInsets.only(
-                    left: leftPadding, // Center two pages
-                    right: leftPadding,
+                    left: clampedLeftPadding, // Center two pages
+                    right: clampedLeftPadding,
                     top: AppConfig.pagePadding,
                     bottom: AppConfig.pagePadding,
                   ),
@@ -348,4 +435,12 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
       ),
     );
   }
+}
+
+/// Represents a queued scroll request for rapid page advances.
+class _QueuedScroll {
+  final int pageNumber;
+  final bool? goingForward;
+
+  _QueuedScroll(this.pageNumber, this.goingForward);
 }

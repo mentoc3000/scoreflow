@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 permissions:
   contents: write
@@ -20,8 +20,8 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.3'
-          channel: 'stable'
+          flutter-version: "3.38.3"
+          channel: "stable"
           cache: true
 
       - name: Install dependencies
@@ -35,6 +35,10 @@ jobs:
 
       - name: Create DMG
         run: |
+          # Create staging directory with only the app bundle
+          mkdir -p dmg-staging
+          cp -R "build/macos/Build/Products/Release/scoreflow.app" dmg-staging/
+
           create-dmg \
             --volname "ScoreFlow" \
             --window-pos 200 120 \
@@ -45,7 +49,7 @@ jobs:
             --app-drop-link 425 190 \
             --no-internet-enable \
             "scoreflow-macos.dmg" \
-            "build/macos/Build/Products/Release/"
+            "dmg-staging/"
 
       - name: Verify DMG file exists
         run: |
