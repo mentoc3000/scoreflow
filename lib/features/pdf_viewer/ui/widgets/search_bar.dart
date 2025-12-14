@@ -33,10 +33,7 @@ class _SearchBarState extends State<SearchBar> {
   void initState() {
     super.initState();
     _searchController = TextEditingController(text: widget.query ?? '');
-    // Request focus when search bar opens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _searchFocusNode.requestFocus();
-    });
+    // Don't auto-focus search field to keep keyboard shortcuts working
   }
 
   @override
