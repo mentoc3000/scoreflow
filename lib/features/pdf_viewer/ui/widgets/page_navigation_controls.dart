@@ -55,9 +55,7 @@ class _PageNavigationControlsState extends State<PageNavigationControls> {
     }
 
     final int? pageNumber = int.tryParse(text);
-    if (pageNumber != null &&
-        pageNumber >= 1 &&
-        pageNumber <= widget.totalPages) {
+    if (pageNumber != null && pageNumber >= 1 && pageNumber <= widget.totalPages) {
       widget.onPageChanged(pageNumber);
       setState(() => _isEditingPage = false);
     } else {
@@ -65,9 +63,7 @@ class _PageNavigationControlsState extends State<PageNavigationControls> {
       _pageController.text = widget.currentPage.toString();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Please enter a page number between 1 and ${widget.totalPages}',
-          ),
+          content: Text('Please enter a page number between 1 and ${widget.totalPages}'),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -78,27 +74,32 @@ class _PageNavigationControlsState extends State<PageNavigationControls> {
   Widget build(BuildContext context) {
     final bool canGoPrevious = widget.currentPage > 1;
     final bool canGoNext = widget.currentPage < widget.totalPages;
+    final bool canGoToFirst = widget.currentPage > 1;
+    final bool canGoToLast = widget.currentPage < widget.totalPages;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, -2))],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // First page button
+          IconButton(
+            icon: const Icon(Icons.first_page),
+            onPressed: canGoToFirst ? () => widget.onPageChanged(1) : null,
+            tooltip: 'First page (Home)',
+          ),
+
+          const SizedBox(width: 8),
+
           // Previous page button
           IconButton(
             icon: const Icon(Icons.chevron_left),
             onPressed: canGoPrevious ? widget.onPreviousPage : null,
-            tooltip: 'Previous page',
+            tooltip: 'Previous page (← or PgUp)',
           ),
 
           const SizedBox(width: 16),
@@ -116,27 +117,18 @@ class _PageNavigationControlsState extends State<PageNavigationControls> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
                     isDense: true,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 8,
-                    ),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                     border: OutlineInputBorder(),
                   ),
                   onTap: () {
                     setState(() => _isEditingPage = true);
-                    _pageController.selection = TextSelection(
-                      baseOffset: 0,
-                      extentOffset: _pageController.text.length,
-                    );
+                    _pageController.selection = TextSelection(baseOffset: 0, extentOffset: _pageController.text.length);
                   },
                   onSubmitted: (String value) => _handlePageSubmit(),
                   onEditingComplete: _handlePageSubmit,
                 ),
               ),
-              Text(
-                ' of ${widget.totalPages}',
-                style: const TextStyle(fontSize: 16),
-              ),
+              Text(' of ${widget.totalPages}', style: const TextStyle(fontSize: 16)),
             ],
           ),
 
@@ -146,7 +138,16 @@ class _PageNavigationControlsState extends State<PageNavigationControls> {
           IconButton(
             icon: const Icon(Icons.chevron_right),
             onPressed: canGoNext ? widget.onNextPage : null,
-            tooltip: 'Next page',
+            tooltip: 'Next page (→ or PgDn)',
+          ),
+
+          const SizedBox(width: 8),
+
+          // Last page button
+          IconButton(
+            icon: const Icon(Icons.last_page),
+            onPressed: canGoToLast ? () => widget.onPageChanged(widget.totalPages) : null,
+            tooltip: 'Last page (End)',
           ),
         ],
       ),

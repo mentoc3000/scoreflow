@@ -95,6 +95,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
 
       // Regular navigation keys (without modifiers)
       if (!isMetaOrCtrl) {
+        final PdfViewerState state = bloc.state;
         switch (event.logicalKey) {
           case LogicalKeyboardKey.arrowLeft:
           case LogicalKeyboardKey.arrowUp:
@@ -105,6 +106,18 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
           case LogicalKeyboardKey.arrowDown:
           case LogicalKeyboardKey.pageDown:
             bloc.add(const NextPageRequested());
+            break;
+          case LogicalKeyboardKey.home:
+            // Jump to first page
+            if (state is PdfViewerLoaded) {
+              bloc.add(const PageNumberChanged(1));
+            }
+            break;
+          case LogicalKeyboardKey.end:
+            // Jump to last page
+            if (state is PdfViewerLoaded) {
+              bloc.add(PageNumberChanged(state.totalPages));
+            }
             break;
         }
       }
