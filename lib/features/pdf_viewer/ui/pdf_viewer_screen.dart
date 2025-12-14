@@ -43,8 +43,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   void _handleKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
       final PdfViewerBloc bloc = context.read<PdfViewerBloc>();
-      final bool isMetaOrCtrl = HardwareKeyboard.instance.isMetaPressed ||
-                                HardwareKeyboard.instance.isControlPressed;
+      final bool isMetaOrCtrl = HardwareKeyboard.instance.isMetaPressed || HardwareKeyboard.instance.isControlPressed;
 
       // Handle Cmd/Ctrl+F to open search
       if (event.logicalKey == LogicalKeyboardKey.keyF && isMetaOrCtrl) {
@@ -195,19 +194,16 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                             child: GestureDetector(
                               onHorizontalDragUpdate: (DragUpdateDetails details) {
                                 setState(() {
-                                  _sidebarWidth = (_sidebarWidth + details.delta.dx)
-                                      .clamp(AppConfig.minSidebarWidth, AppConfig.maxSidebarWidth);
+                                  _sidebarWidth = (_sidebarWidth + details.delta.dx).clamp(
+                                    AppConfig.minSidebarWidth,
+                                    AppConfig.maxSidebarWidth,
+                                  );
                                 });
                               },
                               child: Container(
                                 width: 8,
                                 color: Colors.transparent,
-                                child: Center(
-                                  child: Container(
-                                    width: 1,
-                                    color: Colors.grey[300],
-                                  ),
-                                ),
+                                child: Center(child: Container(width: 1, color: Colors.grey[300])),
                               ),
                             ),
                           ),
@@ -218,7 +214,6 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                             currentPage: state.currentPage,
                             totalPages: state.totalPages,
                             zoomLevel: 1.0,
-                            documentId: state.filePath, // Use file path as document ID
                             onPageChanged: (int pageNumber) {
                               context.read<PdfViewerBloc>().add(PageViewChanged(pageNumber));
                             },
