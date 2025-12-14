@@ -233,43 +233,54 @@ class _TabItem extends StatelessWidget {
           onClose();
         }
       },
-      child: Material(
-        color: isActive ? Theme.of(context).colorScheme.surface : Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: isActive ? Theme.of(context).colorScheme.primary : Colors.transparent,
-                  width: 2,
-                ),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // File icon
-                Icon(_getIconForTab(tab), size: 16),
-                const SizedBox(width: 8),
-                // File name (truncated if too long)
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 150),
-                  child: Text(
-                    tab.displayName,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontWeight: isActive ? FontWeight.bold : FontWeight.normal),
+      child: Container(
+        margin: const EdgeInsets.only(right: 4, top: 4),
+        decoration: BoxDecoration(
+          color: isActive ? Theme.of(context).colorScheme.surface : Colors.transparent,
+          borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8)),
+          boxShadow: isActive
+              ? [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, -1))]
+              : null,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8)),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: isActive ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                    width: 2,
                   ),
                 ),
-                const SizedBox(width: 8),
-                // Close button
-                InkWell(
-                  onTap: onClose,
-                  borderRadius: BorderRadius.circular(12),
-                  child: const Padding(padding: EdgeInsets.all(2), child: Icon(Icons.close, size: 16)),
-                ),
-              ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // File icon
+                  Icon(_getIconForTab(tab), size: 16),
+                  const SizedBox(width: 8),
+                  // File name (truncated if too long)
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 150),
+                    child: Text(
+                      tab.displayName,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontWeight: isActive ? FontWeight.bold : FontWeight.normal),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Close button
+                  InkWell(
+                    onTap: onClose,
+                    borderRadius: BorderRadius.circular(12),
+                    child: const Padding(padding: EdgeInsets.all(2), child: Icon(Icons.close, size: 16)),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -67,29 +67,29 @@ class _SearchBarState extends State<SearchBar> {
     final bool canNavigate = hasResults && !widget.isSearching;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[300]!),
-        ),
+        border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))],
       ),
       child: Row(
         children: [
           // Search icon
-          const Icon(Icons.search, size: 20),
-          const SizedBox(width: 8),
+          Icon(Icons.search, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          const SizedBox(width: 12),
 
           // Search input field
           Expanded(
             child: TextField(
               controller: _searchController,
               focusNode: _searchFocusNode,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Search in document...',
+                hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 border: InputBorder.none,
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
               ),
               onSubmitted: (_) => _handleSubmit(),
               onChanged: (String value) {
@@ -100,19 +100,13 @@ class _SearchBarState extends State<SearchBar> {
             ),
           ),
 
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
 
           // Loading indicator or result count
           if (widget.isSearching)
             const SizedBox(
               width: 80,
-              child: Center(
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
+              child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
             )
           else if (hasResults)
             SizedBox(
@@ -124,11 +118,11 @@ class _SearchBarState extends State<SearchBar> {
               ),
             )
           else if (_searchController.text.isNotEmpty)
-            const SizedBox(
+            SizedBox(
               width: 80,
               child: Text(
                 'No results',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
             )
@@ -140,9 +134,7 @@ class _SearchBarState extends State<SearchBar> {
             icon: const Icon(Icons.keyboard_arrow_up),
             tooltip: 'Previous (Shift+Enter)',
             iconSize: 20,
-            onPressed: canNavigate
-                ? () => context.read<PdfViewerBloc>().add(const SearchPreviousRequested())
-                : null,
+            onPressed: canNavigate ? () => context.read<PdfViewerBloc>().add(const SearchPreviousRequested()) : null,
           ),
 
           // Next result button
@@ -150,9 +142,7 @@ class _SearchBarState extends State<SearchBar> {
             icon: const Icon(Icons.keyboard_arrow_down),
             tooltip: 'Next (Enter)',
             iconSize: 20,
-            onPressed: canNavigate
-                ? () => context.read<PdfViewerBloc>().add(const SearchNextRequested())
-                : null,
+            onPressed: canNavigate ? () => context.read<PdfViewerBloc>().add(const SearchNextRequested()) : null,
           ),
 
           // Close button

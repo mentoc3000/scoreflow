@@ -26,16 +26,13 @@ class BookmarkListItem extends StatelessWidget {
     final double indentation = effectiveLevel * 16.0;
 
     return Material(
-      color: isActive ? Colors.blue.withValues(alpha: 0.1) : Colors.transparent,
+      color: isActive ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3) : Colors.transparent,
+      borderRadius: BorderRadius.circular(4),
       child: InkWell(
         onTap: bookmark.hasValidDestination ? onTap : null,
+        borderRadius: BorderRadius.circular(4),
         child: Padding(
-          padding: EdgeInsets.only(
-            left: 8.0 + indentation,
-            right: 8.0,
-            top: 8.0,
-            bottom: 8.0,
-          ),
+          padding: EdgeInsets.only(left: 8.0 + indentation, right: 8.0, top: 8.0, bottom: 8.0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -43,10 +40,14 @@ class BookmarkListItem extends StatelessWidget {
               if (bookmark.hasChildren)
                 GestureDetector(
                   onTap: onExpandToggle,
-                  child: Icon(
-                    isExpanded ? Icons.expand_more : Icons.chevron_right,
-                    size: 20,
-                    color: Colors.grey[700],
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), color: Colors.transparent),
+                    child: Icon(
+                      isExpanded ? Icons.expand_more : Icons.chevron_right,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 )
               else
@@ -60,8 +61,8 @@ class BookmarkListItem extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                     color: bookmark.hasValidDestination
-                        ? (isActive ? Colors.blue[700] : Colors.black87)
-                        : Colors.grey[500],
+                        ? (isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface)
+                        : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -74,7 +75,11 @@ class BookmarkListItem extends StatelessWidget {
                     padding: const EdgeInsets.only(left: 8.0),
                     child: Text(
                       '${bookmark.pageNumber}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
                       overflow: TextOverflow.clip,
                     ),
                   ),
