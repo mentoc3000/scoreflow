@@ -48,6 +48,7 @@ class PdfViewerLoaded extends PdfViewerState {
   final List<SearchResult> searchResults;
   final int currentSearchResultIndex;
   final bool isSearching;
+  final bool isDistractionFreeMode;
 
   const PdfViewerLoaded({
     required this.document,
@@ -64,6 +65,7 @@ class PdfViewerLoaded extends PdfViewerState {
     this.searchResults = const [],
     this.currentSearchResultIndex = -1,
     this.isSearching = false,
+    this.isDistractionFreeMode = false,
   });
 
   /// Creates a copy of this state with updated values
@@ -82,6 +84,7 @@ class PdfViewerLoaded extends PdfViewerState {
     List<SearchResult>? searchResults,
     int? currentSearchResultIndex,
     bool? isSearching,
+    bool? isDistractionFreeMode,
   }) {
     return PdfViewerLoaded(
       document: document ?? this.document,
@@ -98,6 +101,7 @@ class PdfViewerLoaded extends PdfViewerState {
       searchResults: searchResults ?? this.searchResults,
       currentSearchResultIndex: currentSearchResultIndex ?? this.currentSearchResultIndex,
       isSearching: isSearching ?? this.isSearching,
+      isDistractionFreeMode: isDistractionFreeMode ?? this.isDistractionFreeMode,
     );
   }
 
@@ -122,6 +126,7 @@ class PdfViewerLoaded extends PdfViewerState {
     searchResults,
     currentSearchResultIndex,
     isSearching,
+    isDistractionFreeMode,
   ];
 }
 

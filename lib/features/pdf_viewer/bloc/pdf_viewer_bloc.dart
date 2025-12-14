@@ -44,6 +44,7 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
     on<SearchNextRequested>(_onSearchNextRequested);
     on<SearchPreviousRequested>(_onSearchPreviousRequested);
     on<SearchClosed>(_onSearchClosed);
+    on<DistractionFreeModeToggled>(_onDistractionFreeModeToggled);
   }
 
   /// Loads recent files from the repository
@@ -437,7 +438,10 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
   Future<void> _onZoomInRequested(ZoomInRequested event, Emitter<PdfViewerState> emit) async {
     if (state is PdfViewerLoaded) {
       final PdfViewerLoaded currentState = state as PdfViewerLoaded;
-      final double newZoom = (currentState.zoomLevel + AppConfig.zoomStep).clamp(AppConfig.minZoomLevel, AppConfig.maxZoomLevel);
+      final double newZoom = (currentState.zoomLevel + AppConfig.zoomStep).clamp(
+        AppConfig.minZoomLevel,
+        AppConfig.maxZoomLevel,
+      );
       emit(currentState.copyWith(zoomLevel: newZoom));
     }
   }
@@ -446,7 +450,10 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
   Future<void> _onZoomOutRequested(ZoomOutRequested event, Emitter<PdfViewerState> emit) async {
     if (state is PdfViewerLoaded) {
       final PdfViewerLoaded currentState = state as PdfViewerLoaded;
-      final double newZoom = (currentState.zoomLevel - AppConfig.zoomStep).clamp(AppConfig.minZoomLevel, AppConfig.maxZoomLevel);
+      final double newZoom = (currentState.zoomLevel - AppConfig.zoomStep).clamp(
+        AppConfig.minZoomLevel,
+        AppConfig.maxZoomLevel,
+      );
       emit(currentState.copyWith(zoomLevel: newZoom));
     }
   }
@@ -466,20 +473,14 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
 
       if (event.query.isEmpty) {
         // Clear search
-        emit(currentState.copyWith(
-          searchQuery: '',
-          searchResults: [],
-          currentSearchResultIndex: -1,
-          isSearching: false,
-        ));
+        emit(
+          currentState.copyWith(searchQuery: '', searchResults: [], currentSearchResultIndex: -1, isSearching: false),
+        );
         return;
       }
 
       // Start searching
-      emit(currentState.copyWith(
-        searchQuery: event.query,
-        isSearching: true,
-      ));
+      emit(currentState.copyWith(searchQuery: event.query, isSearching: true));
 
       try {
         // Search through all pages
@@ -497,15 +498,11 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
             }
             // Search for query in page text (case-insensitive)
             final String text = pageText.fullText.toLowerCase();
-              final String query = event.query.toLowerCase();
+            final String query = event.query.toLowerCase();
 
-              int index = text.indexOf(query);
-              while (index != -1) {
-                allResults.add(SearchResult(
-                  pageNumber: i + 1,
-                  textIndex: index,
-                  text: event.query,
-              ));
+            int index = text.indexOf(query);
+            while (index != -1) {
+              allResults.add(SearchResult(pageNumber: i + 1, textIndex: index, text: event.query));
               index = text.indexOf(query, index + 1);
             }
           } catch (e) {
@@ -514,31 +511,27 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
           }
         }
 
-        emit(currentState.copyWith(
-          searchResults: allResults,
-          currentSearchResultIndex: allResults.isEmpty ? -1 : 0,
-          isSearching: false,
-        ));
+        emit(
+          currentState.copyWith(
+            searchResults: allResults,
+            currentSearchResultIndex: allResults.isEmpty ? -1 : 0,
+            isSearching: false,
+          ),
+        );
 
         // Navigate to first result if found
         if (allResults.isNotEmpty) {
           final int firstResultPage = allResults[0].pageNumber;
-          emit(_addToNavigationHistory(
-            currentState.copyWith(
-              searchResults: allResults,
-              currentSearchResultIndex: 0,
-              isSearching: false,
+          emit(
+            _addToNavigationHistory(
+              currentState.copyWith(searchResults: allResults, currentSearchResultIndex: 0, isSearching: false),
+              firstResultPage,
             ),
-            firstResultPage,
-          ));
+          );
         }
       } catch (e) {
         debugPrint('Error searching PDF: $e');
-        emit(currentState.copyWith(
-          searchResults: [],
-          currentSearchResultIndex: -1,
-          isSearching: false,
-        ));
+        emit(currentState.copyWith(searchResults: [], currentSearchResultIndex: -1, isSearching: false));
       }
     }
   }
@@ -553,10 +546,7 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
       final int nextIndex = (currentState.currentSearchResultIndex + 1) % currentState.searchResults.length;
       final int pageNumber = currentState.searchResults[nextIndex].pageNumber;
 
-      emit(_addToNavigationHistory(
-        currentState.copyWith(currentSearchResultIndex: nextIndex),
-        pageNumber,
-      ));
+      emit(_addToNavigationHistory(currentState.copyWith(currentSearchResultIndex: nextIndex), pageNumber));
     }
   }
 
@@ -571,10 +561,7 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
       final int wrappedIndex = previousIndex < 0 ? currentState.searchResults.length - 1 : previousIndex;
       final int pageNumber = currentState.searchResults[wrappedIndex].pageNumber;
 
-      emit(_addToNavigationHistory(
-        currentState.copyWith(currentSearchResultIndex: wrappedIndex),
-        pageNumber,
-      ));
+      emit(_addToNavigationHistory(currentState.copyWith(currentSearchResultIndex: wrappedIndex), pageNumber));
     }
   }
 
@@ -582,12 +569,15 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
   Future<void> _onSearchClosed(SearchClosed event, Emitter<PdfViewerState> emit) async {
     if (state is PdfViewerLoaded) {
       final PdfViewerLoaded currentState = state as PdfViewerLoaded;
-      emit(currentState.copyWith(
-        searchQuery: '',
-        searchResults: [],
-        currentSearchResultIndex: -1,
-        isSearching: false,
-      ));
+      emit(currentState.copyWith(searchQuery: '', searchResults: [], currentSearchResultIndex: -1, isSearching: false));
+    }
+  }
+
+  /// Handles distraction-free mode toggle
+  Future<void> _onDistractionFreeModeToggled(DistractionFreeModeToggled event, Emitter<PdfViewerState> emit) async {
+    if (state is PdfViewerLoaded) {
+      final PdfViewerLoaded currentState = state as PdfViewerLoaded;
+      emit(currentState.copyWith(isDistractionFreeMode: !currentState.isDistractionFreeMode));
     }
   }
 

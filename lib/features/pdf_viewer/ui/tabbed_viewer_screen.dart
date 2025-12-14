@@ -199,6 +199,7 @@ class _TabbedViewerContentState extends State<_TabbedViewerContent> {
                   zoomLevel: pdfState.zoomLevel,
                   isBookmarkSidebarOpen: pdfState.isBookmarkSidebarOpen,
                   searchQuery: pdfState.searchQuery,
+                  isDistractionFreeMode: pdfState.isDistractionFreeMode,
                 );
                 context.read<TabManagerBloc>().add(TabStateUpdated(currentTabState));
               }
