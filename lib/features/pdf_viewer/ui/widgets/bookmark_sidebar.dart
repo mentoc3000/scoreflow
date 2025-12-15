@@ -90,47 +90,51 @@ class _BookmarkSidebarState extends State<BookmarkSidebar> {
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       width: widget.isOpen ? widget.width : 0,
       child: widget.isOpen
           ? Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                border: Border(right: BorderSide(color: Theme.of(context).colorScheme.outlineVariant, width: 1)),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(2, 0)),
-                ],
+                border: Border(
+                  right: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                    width: 1,
+                  ),
+                ),
               ),
               child: Column(
                 children: [
                   // Header
                   Container(
-                    padding: const EdgeInsets.all(16.0),
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outlineVariant, width: 1)),
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                          width: 1,
+                        ),
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: Text(
-                            'Bookmarks',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        Text(
+                          'Bookmarks',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, size: 20),
+                          icon: const Icon(Icons.close, size: 18),
                           onPressed: widget.onToggle,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          tooltip: 'Close bookmarks',
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          tooltip: 'Close bookmarks (⌘B)',
                         ),
                       ],
                     ),
@@ -147,15 +151,14 @@ class _BookmarkSidebarState extends State<BookmarkSidebar> {
                                   Icon(
                                     Icons.bookmark_border,
                                     size: 48,
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    color: Theme.of(context).colorScheme.outlineVariant,
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
                                     'No bookmarks',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    ),
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        ),
                                   ),
                                 ],
                               ),
@@ -163,7 +166,7 @@ class _BookmarkSidebarState extends State<BookmarkSidebar> {
                           )
                         : ListView(
                             controller: _scrollController,
-                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
                             children: _buildBookmarkTree(widget.bookmarks, 0),
                           ),
                   ),

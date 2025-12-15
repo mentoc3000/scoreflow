@@ -10,19 +10,20 @@ class OpenPdfButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          onPressed: () {
-            context.read<PdfViewerBloc>().add(const OpenFileRequested());
-          },
-          icon: const Icon(Icons.folder_open),
-          label: const Text('Open PDF'),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: () {
+          context.read<PdfViewerBloc>().add(const OpenFileRequested());
+        },
+        icon: const Icon(Icons.folder_open, size: 20),
+        label: const Text('Open PDF'),
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          textStyle: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
           ),
         ),
       ),

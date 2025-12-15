@@ -7,6 +7,7 @@ import 'package:path/path.dart' as path;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/theme/app_theme.dart';
 import 'features/pdf_viewer/bloc/pdf_viewer_bloc.dart';
 import 'features/pdf_viewer/bloc/pdf_viewer_event.dart';
 import 'features/pdf_viewer/bloc/pdf_viewer_state.dart';
@@ -138,7 +139,7 @@ class ScoreFlowApp extends StatelessWidget {
             child: MaterialApp(
               title: 'ScoreFlow',
               debugShowCheckedModeBanner: false,
-              theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple), useMaterial3: true),
+              theme: AppTheme.lightTheme,
               home: const TabbedViewerScreen(),
             ),
           );

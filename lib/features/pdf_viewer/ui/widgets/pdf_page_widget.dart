@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import 'pdf_link_handler.dart';
 
 /// Widget for rendering a single PDF page with text selection support
@@ -28,16 +29,18 @@ class PdfPageWidget extends StatelessWidget {
         boxShadow: isCurrentPage
             ? [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 10,
-                  spreadRadius: 2,
+                  color: AppColors.pdfShadow.withValues(alpha: 0.15),
+                  blurRadius: 8,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 2),
                 ),
               ]
             : [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 5,
-                  spreadRadius: 1,
+                  color: AppColors.pdfShadow.withValues(alpha: 0.08),
+                  blurRadius: 4,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 1),
                 ),
               ],
       ),

@@ -140,9 +140,15 @@ class _TabbedViewerContentState extends State<_TabbedViewerContent> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Tab bar
+        // Compact tab bar with integrated controls
         Container(
-          color: Theme.of(context).colorScheme.surfaceContainer,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outlineVariant, width: 1)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1)),
+            ],
+          ),
           child: Row(
             children: [
               // Tabs
@@ -176,14 +182,47 @@ class _TabbedViewerContentState extends State<_TabbedViewerContent> {
                   ),
                 ),
               ),
+              // Integrated toolbar for PDF viewer
+              BlocBuilder<PdfViewerBloc, PdfViewerState>(
+                builder: (context, pdfState) {
+                  if (pdfState is PdfViewerLoaded && !pdfState.isDistractionFreeMode) {
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Vertical divider
+                        Container(
+                          height: 32,
+                          width: 1,
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        // Bookmark toggle
+                        IconButton(
+                          icon: Icon(pdfState.isBookmarkSidebarOpen ? Icons.bookmark : Icons.bookmark_border, size: 20),
+                          tooltip: pdfState.isBookmarkSidebarOpen ? 'Hide bookmarks (⌘B)' : 'Show bookmarks (⌘B)',
+                          onPressed: () {
+                            context.read<PdfViewerBloc>().add(const BookmarkSidebarToggled());
+                          },
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                        ),
+                      ],
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
               // New tab button
               IconButton(
-                icon: const Icon(Icons.add),
+                icon: const Icon(Icons.add, size: 20),
                 tooltip: 'New home tab',
                 onPressed: () {
                   context.read<TabManagerBloc>().add(const TabOpenRequested());
                 },
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
+              const SizedBox(width: 4),
             ],
           ),
         ),
@@ -216,7 +255,7 @@ class _TabbedViewerContentState extends State<_TabbedViewerContent> {
   }
 }
 
-class _TabItem extends StatelessWidget {
+class _TabItem extends StatefulWidget {
   final BaseTab tab;
   final bool isActive;
   final VoidCallback onTap;
@@ -225,61 +264,91 @@ class _TabItem extends StatelessWidget {
   const _TabItem({required this.tab, required this.isActive, required this.onTap, required this.onClose});
 
   @override
+  State<_TabItem> createState() => _TabItemState();
+}
+
+class _TabItemState extends State<_TabItem> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
     return Listener(
       onPointerDown: (PointerDownEvent event) {
         // Middle mouse button has kMiddleMouseButton = 4
         if (event.buttons == 4) {
-          onClose();
+          widget.onClose();
         }
       },
-      child: Container(
-        margin: const EdgeInsets.only(right: 4, top: 4),
-        decoration: BoxDecoration(
-          color: isActive ? Theme.of(context).colorScheme.surface : Colors.transparent,
-          borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8)),
-          boxShadow: isActive
-              ? [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, -1))]
-              : null,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8)),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: isActive ? Theme.of(context).colorScheme.primary : Colors.transparent,
-                    width: 2,
-                  ),
-                ),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: Container(
+          height: 40,
+          margin: const EdgeInsets.only(right: 1),
+          decoration: BoxDecoration(
+            color: widget.isActive
+                ? Theme.of(context).colorScheme.surfaceContainerHighest
+                : _isHovered
+                ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+                : Colors.transparent,
+            border: Border(
+              bottom: BorderSide(
+                color: widget.isActive ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                width: 2,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // File icon
-                  Icon(_getIconForTab(tab), size: 16),
-                  const SizedBox(width: 8),
-                  // File name (truncated if too long)
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 150),
-                    child: Text(
-                      tab.displayName,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: isActive ? FontWeight.bold : FontWeight.normal),
+            ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // File icon
+                    Icon(
+                      _getIconForTab(widget.tab),
+                      size: 16,
+                      color: widget.isActive
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Close button
-                  InkWell(
-                    onTap: onClose,
-                    borderRadius: BorderRadius.circular(12),
-                    child: const Padding(padding: EdgeInsets.all(2), child: Icon(Icons.close, size: 16)),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    // File name (truncated if too long)
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 150),
+                      child: Text(
+                        widget.tab.displayName,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: widget.isActive ? FontWeight.w600 : FontWeight.normal,
+                          color: widget.isActive
+                              ? Theme.of(context).colorScheme.onSurface
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Close button
+                    InkWell(
+                      onTap: widget.onClose,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Padding(
+                        padding: const EdgeInsets.all(2),
+                        child: Icon(
+                          Icons.close,
+                          size: 14,
+                          color: _isHovered || widget.isActive
+                              ? Theme.of(context).colorScheme.onSurfaceVariant
+                              : Colors.transparent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

@@ -166,39 +166,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
               final List<PdfBookmarkItem> bookmarkItems = PdfBookmarkItem.fromOutlineNodes(state.bookmarks);
 
               return Scaffold(
-                appBar: state.isDistractionFreeMode
-                    ? null
-                    : AppBar(
-                        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-                        automaticallyImplyLeading: false,
-                        leading: IconButton(
-                          icon: Icon(state.isBookmarkSidebarOpen ? Icons.bookmark : Icons.bookmark_border),
-                          tooltip: state.isBookmarkSidebarOpen ? 'Hide bookmarks (⌘B)' : 'Show bookmarks (⌘B)',
-                          onPressed: () {
-                            context.read<PdfViewerBloc>().add(const BookmarkSidebarToggled());
-                          },
-                        ),
-                        actions: [
-                          // Search button
-                          IconButton(
-                            icon: Icon(_isSearchOpen ? Icons.search_off : Icons.search),
-                            tooltip: _isSearchOpen ? 'Close search (Esc)' : 'Search (⌘F)',
-                            onPressed: () {
-                              setState(() {
-                                _isSearchOpen = !_isSearchOpen;
-                              });
-                              if (!_isSearchOpen) {
-                                context.read<PdfViewerBloc>().add(const SearchClosed());
-                                // Request focus back after closing search
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  _focusNode.requestFocus();
-                                });
-                              }
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                      ),
+                // No AppBar - controls are integrated in tab bar
                 body: Stack(
                   children: [
                     // Main content

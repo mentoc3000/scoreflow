@@ -12,19 +12,20 @@ class SectionDivider extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Row(
         children: [
-          const Expanded(child: Divider()),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[600],
-              ),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  letterSpacing: 0.5,
+                ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Divider(
+              color: Theme.of(context).colorScheme.outlineVariant,
+              thickness: 1,
             ),
           ),
-          const Expanded(child: Divider()),
         ],
       ),
     );
