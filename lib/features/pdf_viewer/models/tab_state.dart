@@ -7,6 +7,7 @@ class TabState extends Equatable {
   final double zoomLevel;
   final bool isBookmarkSidebarOpen;
   final String? searchQuery;
+  final bool isDistractionFreeMode;
 
   const TabState({
     required this.tabId,
@@ -14,6 +15,7 @@ class TabState extends Equatable {
     this.zoomLevel = 1.0,
     this.isBookmarkSidebarOpen = false,
     this.searchQuery,
+    this.isDistractionFreeMode = false,
   });
 
   /// Creates a TabState from JSON
@@ -24,6 +26,7 @@ class TabState extends Equatable {
       zoomLevel: (json['zoomLevel'] as num?)?.toDouble() ?? 1.0,
       isBookmarkSidebarOpen: json['isBookmarkSidebarOpen'] as bool? ?? false,
       searchQuery: json['searchQuery'] as String?,
+      isDistractionFreeMode: json['isDistractionFreeMode'] as bool? ?? false,
     );
   }
 
@@ -35,6 +38,7 @@ class TabState extends Equatable {
       'zoomLevel': zoomLevel,
       'isBookmarkSidebarOpen': isBookmarkSidebarOpen,
       'searchQuery': searchQuery,
+      'isDistractionFreeMode': isDistractionFreeMode,
     };
   }
 
@@ -45,6 +49,7 @@ class TabState extends Equatable {
     double? zoomLevel,
     bool? isBookmarkSidebarOpen,
     String? searchQuery,
+    bool? isDistractionFreeMode,
   }) {
     return TabState(
       tabId: tabId ?? this.tabId,
@@ -52,15 +57,10 @@ class TabState extends Equatable {
       zoomLevel: zoomLevel ?? this.zoomLevel,
       isBookmarkSidebarOpen: isBookmarkSidebarOpen ?? this.isBookmarkSidebarOpen,
       searchQuery: searchQuery ?? this.searchQuery,
+      isDistractionFreeMode: isDistractionFreeMode ?? this.isDistractionFreeMode,
     );
   }
 
   @override
-  List<Object?> get props => [
-        tabId,
-        currentPage,
-        zoomLevel,
-        isBookmarkSidebarOpen,
-        searchQuery,
-      ];
+  List<Object?> get props => [tabId, currentPage, zoomLevel, isBookmarkSidebarOpen, searchQuery, isDistractionFreeMode];
 }

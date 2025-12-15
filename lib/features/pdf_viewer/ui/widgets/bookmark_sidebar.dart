@@ -59,10 +59,7 @@ class _BookmarkSidebarState extends State<BookmarkSidebar> {
     return bookmark.pageNumber == widget.currentPage;
   }
 
-  List<Widget> _buildBookmarkTree(
-    List<PdfBookmarkItem> bookmarks,
-    int startIndex,
-  ) {
+  List<Widget> _buildBookmarkTree(List<PdfBookmarkItem> bookmarks, int startIndex) {
     final List<Widget> widgets = [];
 
     for (int i = 0; i < bookmarks.length; i++) {
@@ -76,12 +73,8 @@ class _BookmarkSidebarState extends State<BookmarkSidebar> {
           bookmark: bookmark,
           isExpanded: isExpanded,
           isActive: isActive,
-          onTap: bookmark.hasValidDestination
-              ? () => widget.onBookmarkTap(bookmark.pageNumber!)
-              : null,
-          onExpandToggle: bookmark.hasChildren
-              ? () => _toggleExpanded(bookmark, index)
-              : null,
+          onTap: bookmark.hasValidDestination ? () => widget.onBookmarkTap(bookmark.pageNumber!) : null,
+          onExpandToggle: bookmark.hasChildren ? () => _toggleExpanded(bookmark, index) : null,
         ),
       );
 
@@ -97,54 +90,51 @@ class _BookmarkSidebarState extends State<BookmarkSidebar> {
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       width: widget.isOpen ? widget.width : 0,
       child: widget.isOpen
           ? Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 border: Border(
-                  right: BorderSide(color: Colors.grey[300]!, width: 1),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(2, 0),
+                  right: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                    width: 1,
                   ),
-                ],
+                ),
               ),
               child: Column(
                 children: [
                   // Header
                   Container(
-                    padding: const EdgeInsets.all(16.0),
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       border: Border(
-                        bottom: BorderSide(color: Colors.grey[300]!, width: 1),
+                        bottom: BorderSide(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                          width: 1,
+                        ),
                       ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: const Text(
-                            'Bookmarks',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        Text(
+                          'Bookmarks',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, size: 20),
+                          icon: const Icon(Icons.close, size: 18),
                           onPressed: widget.onToggle,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          tooltip: 'Close bookmarks',
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          tooltip: 'Close bookmarks (⌘B)',
                         ),
                       ],
                     ),
@@ -161,15 +151,14 @@ class _BookmarkSidebarState extends State<BookmarkSidebar> {
                                   Icon(
                                     Icons.bookmark_border,
                                     size: 48,
-                                    color: Colors.grey[400],
+                                    color: Theme.of(context).colorScheme.outlineVariant,
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
                                     'No bookmarks',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[600],
-                                    ),
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        ),
                                   ),
                                 ],
                               ),
@@ -177,6 +166,7 @@ class _BookmarkSidebarState extends State<BookmarkSidebar> {
                           )
                         : ListView(
                             controller: _scrollController,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
                             children: _buildBookmarkTree(widget.bookmarks, 0),
                           ),
                   ),

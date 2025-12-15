@@ -45,21 +45,42 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       final PdfViewerBloc bloc = context.read<PdfViewerBloc>();
       final bool isMetaOrCtrl = HardwareKeyboard.instance.isMetaPressed || HardwareKeyboard.instance.isControlPressed;
 
-      // Handle Cmd/Ctrl+F to open search
-      if (event.logicalKey == LogicalKeyboardKey.keyF && isMetaOrCtrl) {
+      // Handle Cmd+Shift+F to toggle distraction-free mode
+      if (event.logicalKey == LogicalKeyboardKey.keyF && isMetaOrCtrl && HardwareKeyboard.instance.isShiftPressed) {
+        bloc.add(const DistractionFreeModeToggled());
+        return;
+      }
+
+      // Handle Cmd/Ctrl+F to open search (without Shift)
+      if (event.logicalKey == LogicalKeyboardKey.keyF && isMetaOrCtrl && !HardwareKeyboard.instance.isShiftPressed) {
         setState(() {
           _isSearchOpen = true;
         });
         return;
       }
 
-      // Handle Esc to close search
-      if (event.logicalKey == LogicalKeyboardKey.escape && _isSearchOpen) {
-        setState(() {
-          _isSearchOpen = false;
-        });
-        bloc.add(const SearchClosed());
-        return;
+      // Handle Esc to close search or exit distraction-free mode
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        final PdfViewerState state = bloc.state;
+        if (state is PdfViewerLoaded && state.isDistractionFreeMode) {
+          bloc.add(const DistractionFreeModeToggled());
+          // Request focus back after toggling
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _focusNode.requestFocus();
+          });
+          return;
+        }
+        if (_isSearchOpen) {
+          setState(() {
+            _isSearchOpen = false;
+          });
+          bloc.add(const SearchClosed());
+          // Request focus back after closing search
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _focusNode.requestFocus();
+          });
+          return;
+        }
       }
 
       // Handle Cmd/Ctrl+B to toggle bookmarks
@@ -82,6 +103,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
 
       // Regular navigation keys (without modifiers)
       if (!isMetaOrCtrl) {
+        final PdfViewerState state = bloc.state;
         switch (event.logicalKey) {
           case LogicalKeyboardKey.arrowLeft:
           case LogicalKeyboardKey.arrowUp:
@@ -92,6 +114,18 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
           case LogicalKeyboardKey.arrowDown:
           case LogicalKeyboardKey.pageDown:
             bloc.add(const NextPageRequested());
+            break;
+          case LogicalKeyboardKey.home:
+            // Jump to first page
+            if (state is PdfViewerLoaded) {
+              bloc.add(const PageNumberChanged(1));
+            }
+            break;
+          case LogicalKeyboardKey.end:
+            // Jump to last page
+            if (state is PdfViewerLoaded) {
+              bloc.add(PageNumberChanged(state.totalPages));
+            }
             break;
         }
       }
@@ -104,150 +138,167 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       focusNode: _focusNode,
       onKeyEvent: _handleKeyEvent,
       autofocus: true,
-      child: BlocBuilder<PdfViewerBloc, PdfViewerState>(
-        builder: (BuildContext context, PdfViewerState state) {
-          if (state is PdfViewerLoading) {
-            return Scaffold(
-              appBar: AppBar(
-                title: const Text('Loading...'),
-                backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-              ),
-              body: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Loading PDF...')],
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          // Request focus when user taps anywhere in the viewer
+          _focusNode.requestFocus();
+        },
+        child: BlocBuilder<PdfViewerBloc, PdfViewerState>(
+          builder: (BuildContext context, PdfViewerState state) {
+            if (state is PdfViewerLoading) {
+              return Scaffold(
+                appBar: AppBar(
+                  title: const Text('Loading...'),
+                  backgroundColor: Theme.of(context).colorScheme.inversePrimary,
                 ),
-              ),
-            );
-          }
-
-          if (state is PdfViewerLoaded) {
-            // Convert bookmarks to UI-friendly format
-            final List<PdfBookmarkItem> bookmarkItems = PdfBookmarkItem.fromOutlineNodes(state.bookmarks);
-
-            return Scaffold(
-              appBar: AppBar(
-                backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-                automaticallyImplyLeading: false,
-                leading: IconButton(
-                  icon: Icon(state.isBookmarkSidebarOpen ? Icons.bookmark : Icons.bookmark_border),
-                  tooltip: state.isBookmarkSidebarOpen ? 'Hide bookmarks (⌘B)' : 'Show bookmarks (⌘B)',
-                  onPressed: () {
-                    context.read<PdfViewerBloc>().add(const BookmarkSidebarToggled());
-                  },
-                ),
-                actions: [
-                  // Search button
-                  IconButton(
-                    icon: Icon(_isSearchOpen ? Icons.search_off : Icons.search),
-                    tooltip: _isSearchOpen ? 'Close search (Esc)' : 'Search (⌘F)',
-                    onPressed: () {
-                      setState(() {
-                        _isSearchOpen = !_isSearchOpen;
-                      });
-                      if (!_isSearchOpen) {
-                        context.read<PdfViewerBloc>().add(const SearchClosed());
-                      }
-                    },
+                body: const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Loading PDF...')],
                   ),
-                  const SizedBox(width: 8),
-                ],
-              ),
-              body: Column(
-                children: [
-                  // Search bar (shown when search is active)
-                  if (_isSearchOpen)
-                    custom.SearchBar(
-                      query: state.searchQuery,
-                      currentResultIndex: state.currentSearchResultIndex,
-                      totalResults: state.searchResults.length,
-                      isSearching: state.isSearching,
-                      onClose: () {
-                        setState(() {
-                          _isSearchOpen = false;
-                        });
-                        context.read<PdfViewerBloc>().add(const SearchClosed());
-                      },
+                ),
+              );
+            }
+
+            if (state is PdfViewerLoaded) {
+              // Convert bookmarks to UI-friendly format
+              final List<PdfBookmarkItem> bookmarkItems = PdfBookmarkItem.fromOutlineNodes(state.bookmarks);
+
+              return Scaffold(
+                // No AppBar - controls are integrated in tab bar
+                body: Stack(
+                  children: [
+                    // Main content
+                    Column(
+                      children: [
+                        // Search bar (shown when search is active and not in distraction-free mode)
+                        if (_isSearchOpen && !state.isDistractionFreeMode)
+                          custom.SearchBar(
+                            query: state.searchQuery,
+                            currentResultIndex: state.currentSearchResultIndex,
+                            totalResults: state.searchResults.length,
+                            isSearching: state.isSearching,
+                            onClose: () {
+                              setState(() {
+                                _isSearchOpen = false;
+                              });
+                              context.read<PdfViewerBloc>().add(const SearchClosed());
+                              // Request focus back after closing search
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                _focusNode.requestFocus();
+                              });
+                            },
+                          ),
+
+                        // PDF Display with Sidebar
+                        Expanded(
+                          child: Row(
+                            children: [
+                              // Bookmark Sidebar (hidden in distraction-free mode)
+                              if (!state.isDistractionFreeMode)
+                                BookmarkSidebar(
+                                  bookmarks: bookmarkItems,
+                                  isOpen: state.isBookmarkSidebarOpen,
+                                  width: _sidebarWidth,
+                                  onToggle: () {
+                                    context.read<PdfViewerBloc>().add(const BookmarkSidebarToggled());
+                                  },
+                                  onBookmarkTap: (int pageNumber) {
+                                    context.read<PdfViewerBloc>().add(BookmarkTapped(pageNumber: pageNumber));
+                                  },
+                                  currentPage: state.currentPage,
+                                ),
+                              // Resizable divider (only visible when sidebar is open and not in distraction-free mode)
+                              if (state.isBookmarkSidebarOpen && !state.isDistractionFreeMode)
+                                MouseRegion(
+                                  cursor: SystemMouseCursors.resizeColumn,
+                                  child: GestureDetector(
+                                    onHorizontalDragUpdate: (DragUpdateDetails details) {
+                                      setState(() {
+                                        _sidebarWidth = (_sidebarWidth + details.delta.dx).clamp(
+                                          AppConfig.minSidebarWidth,
+                                          AppConfig.maxSidebarWidth,
+                                        );
+                                      });
+                                    },
+                                    child: Container(
+                                      width: 8,
+                                      color: Colors.transparent,
+                                      child: Center(child: Container(width: 1, color: Colors.grey[300])),
+                                    ),
+                                  ),
+                                ),
+                              // PDF Viewer
+                              Expanded(
+                                child: Container(
+                                  color: state.isDistractionFreeMode ? Colors.black : null,
+                                  child: MultiPageViewer(
+                                    document: state.document,
+                                    currentPage: state.currentPage,
+                                    totalPages: state.totalPages,
+                                    zoomLevel: 1.0,
+                                    onPageChanged: (int pageNumber) {
+                                      context.read<PdfViewerBloc>().add(PageViewChanged(pageNumber));
+                                    },
+                                    onLinkTap: (int pageNumber) {
+                                      context.read<PdfViewerBloc>().add(BookmarkTapped(pageNumber: pageNumber));
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Page Navigation Controls (hidden in distraction-free mode)
+                        if (!state.isDistractionFreeMode)
+                          PageNavigationControls(
+                            currentPage: state.currentPage,
+                            totalPages: state.totalPages,
+                            onPreviousPage: () {
+                              context.read<PdfViewerBloc>().add(const PreviousPageRequested());
+                            },
+                            onNextPage: () {
+                              context.read<PdfViewerBloc>().add(const NextPageRequested());
+                            },
+                            onPageChanged: (int pageNumber) {
+                              context.read<PdfViewerBloc>().add(PageNumberChanged(pageNumber));
+                            },
+                          ),
+                      ],
                     ),
 
-                  // PDF Display with Sidebar
-                  Expanded(
-                    child: Row(
-                      children: [
-                        // Bookmark Sidebar
-                        BookmarkSidebar(
-                          bookmarks: bookmarkItems,
-                          isOpen: state.isBookmarkSidebarOpen,
-                          width: _sidebarWidth,
-                          onToggle: () {
-                            context.read<PdfViewerBloc>().add(const BookmarkSidebarToggled());
-                          },
-                          onBookmarkTap: (int pageNumber) {
-                            context.read<PdfViewerBloc>().add(BookmarkTapped(pageNumber: pageNumber));
-                          },
-                          currentPage: state.currentPage,
-                        ),
-                        // Resizable divider (only visible when sidebar is open)
-                        if (state.isBookmarkSidebarOpen)
-                          MouseRegion(
-                            cursor: SystemMouseCursors.resizeColumn,
-                            child: GestureDetector(
-                              onHorizontalDragUpdate: (DragUpdateDetails details) {
-                                setState(() {
-                                  _sidebarWidth = (_sidebarWidth + details.delta.dx).clamp(
-                                    AppConfig.minSidebarWidth,
-                                    AppConfig.maxSidebarWidth,
-                                  );
-                                });
-                              },
-                              child: Container(
-                                width: 8,
-                                color: Colors.transparent,
-                                child: Center(child: Container(width: 1, color: Colors.grey[300])),
+                    // Distraction-free mode hint overlay (shows briefly when entering the mode)
+                    if (state.isDistractionFreeMode)
+                      Positioned(
+                        top: 16,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: AnimatedOpacity(
+                            opacity: 1.0,
+                            duration: const Duration(milliseconds: 300),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(8)),
+                              child: const Text(
+                                'Focus Mode • Press ⌘⇧F or Esc to exit',
+                                style: TextStyle(color: Colors.white, fontSize: 14),
                               ),
                             ),
                           ),
-                        // PDF Viewer
-                        Expanded(
-                          child: MultiPageViewer(
-                            document: state.document,
-                            currentPage: state.currentPage,
-                            totalPages: state.totalPages,
-                            zoomLevel: 1.0,
-                            onPageChanged: (int pageNumber) {
-                              context.read<PdfViewerBloc>().add(PageViewChanged(pageNumber));
-                            },
-                            onLinkTap: (int pageNumber) {
-                              context.read<PdfViewerBloc>().add(BookmarkTapped(pageNumber: pageNumber));
-                            },
-                          ),
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                  ],
+                ),
+              );
+            }
 
-                  // Page Navigation Controls
-                  PageNavigationControls(
-                    currentPage: state.currentPage,
-                    totalPages: state.totalPages,
-                    onPreviousPage: () {
-                      context.read<PdfViewerBloc>().add(const PreviousPageRequested());
-                    },
-                    onNextPage: () {
-                      context.read<PdfViewerBloc>().add(const NextPageRequested());
-                    },
-                    onPageChanged: (int pageNumber) {
-                      context.read<PdfViewerBloc>().add(PageNumberChanged(pageNumber));
-                    },
-                  ),
-                ],
-              ),
-            );
-          }
-
-          // Fallback for unexpected states
-          return const Scaffold(body: Center(child: Text('Unexpected state')));
-        },
+            // Fallback for unexpected states
+            return const Scaffold(body: Center(child: Text('Unexpected state')));
+          },
+        ),
       ),
     );
   }

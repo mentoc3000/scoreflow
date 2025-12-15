@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/theme/app_theme.dart';
 import 'pdf_page_widget.dart';
 
 /// Custom scroll behavior that enables mouse drag scrolling on desktop
@@ -252,7 +253,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
     // Single page: show centered
     if (widget.totalPages == 1) {
       return Container(
-        color: Colors.grey[300],
+        color: AppColors.pdfBackground,
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -273,7 +274,7 @@ class _MultiPageViewerState extends State<MultiPageViewer> {
 
     // Multi-page: use custom horizontal scroll with precise control
     return Container(
-      color: Colors.grey[300],
+      color: AppColors.pdfBackground,
       child: NotificationListener<ScrollNotification>(
         onNotification: (notification) {
           // Track user drag state for scroll event filtering

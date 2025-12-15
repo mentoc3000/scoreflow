@@ -31,65 +31,107 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ScoreFlow'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        elevation: 0,
-      ),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: BlocBuilder<PdfViewerBloc, PdfViewerState>(
         builder: (BuildContext context, PdfViewerState state) {
           if (state is PdfViewerInitial) {
             return Column(
               children: [
-                // Open PDF button section
-                const OpenPdfButton(),
-
-                // Divider
-                if (state.recentFiles.isNotEmpty) const SectionDivider(title: 'Recent Files'),
-
-                // Recent files list
-                Expanded(
-                  child: RecentFilesList(
-                    recentFiles: state.recentFiles,
-                    onFileSelected: (String path) {
-                      context.read<PdfViewerBloc>().add(RecentFileOpened(path));
-                    },
-                    onFileRemoved: (String path) {
-                      context.read<PdfViewerBloc>().add(RecentFileRemoved(path));
-                    },
+                // Header section with Open button
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Text(
+                        'ScoreFlow',
+                        style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.5,
+                            ),
+                      ),
+                      const SizedBox(height: 24),
+                      const OpenPdfButton(),
+                    ],
                   ),
                 ),
+
+                // Recent files section
+                if (state.recentFiles.isNotEmpty) ...[
+                  const SectionDivider(title: 'Recent Files'),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: RecentFilesList(
+                      recentFiles: state.recentFiles,
+                      onFileSelected: (String path) {
+                        context.read<PdfViewerBloc>().add(RecentFileOpened(path));
+                      },
+                      onFileRemoved: (String path) {
+                        context.read<PdfViewerBloc>().add(RecentFileRemoved(path));
+                      },
+                    ),
+                  ),
+                ],
               ],
             );
           } else if (state is PdfViewerError) {
             return Column(
               children: [
-                // Open PDF button
-                const OpenPdfButton(),
+                // Header section with Open button
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Text(
+                        'ScoreFlow',
+                        style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.5,
+                            ),
+                      ),
+                      const SizedBox(height: 24),
+                      const OpenPdfButton(),
+                    ],
+                  ),
+                ),
 
                 // Error message
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Card(
-                    color: Colors.red[50],
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.error_outline, color: Colors.red),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(state.message, style: const TextStyle(color: Colors.red)),
-                          ),
-                        ],
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.error.withValues(alpha: 0.2),
                       ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            state.message,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onErrorContainer,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
 
+                const SizedBox(height: 16),
+
                 // Recent files (if available)
                 if (state.recentFiles.isNotEmpty) ...[
                   const SectionDivider(title: 'Recent Files'),
+                  const SizedBox(height: 16),
                   Expanded(
                     child: RecentFilesList(
                       recentFiles: state.recentFiles,

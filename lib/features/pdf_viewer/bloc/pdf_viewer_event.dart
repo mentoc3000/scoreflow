@@ -157,3 +157,8 @@ class RecentFileRemoved extends PdfViewerEvent {
   @override
   List<Object?> get props => [filePath];
 }
+
+/// Event to toggle distraction-free performance mode
+class DistractionFreeModeToggled extends PdfViewerEvent {
+  const DistractionFreeModeToggled();
+}

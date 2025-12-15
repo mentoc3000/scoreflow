@@ -55,9 +55,7 @@ class _PageNavigationControlsState extends State<PageNavigationControls> {
     }
 
     final int? pageNumber = int.tryParse(text);
-    if (pageNumber != null &&
-        pageNumber >= 1 &&
-        pageNumber <= widget.totalPages) {
+    if (pageNumber != null && pageNumber >= 1 && pageNumber <= widget.totalPages) {
       widget.onPageChanged(pageNumber);
       setState(() => _isEditingPage = false);
     } else {
@@ -65,9 +63,7 @@ class _PageNavigationControlsState extends State<PageNavigationControls> {
       _pageController.text = widget.currentPage.toString();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Please enter a page number between 1 and ${widget.totalPages}',
-          ),
+          content: Text('Please enter a page number between 1 and ${widget.totalPages}'),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -78,56 +74,101 @@ class _PageNavigationControlsState extends State<PageNavigationControls> {
   Widget build(BuildContext context) {
     final bool canGoPrevious = widget.currentPage > 1;
     final bool canGoNext = widget.currentPage < widget.totalPages;
+    final bool canGoToFirst = widget.currentPage > 1;
+    final bool canGoToLast = widget.currentPage < widget.totalPages;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      height: 40,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(
+          top: BorderSide(
+            color: Theme.of(context).colorScheme.outlineVariant,
+            width: 1,
+          ),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 2,
+            offset: const Offset(0, -1),
           ),
         ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Previous page button
+          // First page button
           IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: canGoPrevious ? widget.onPreviousPage : null,
-            tooltip: 'Previous page',
+            icon: const Icon(Icons.first_page, size: 20),
+            onPressed: canGoToFirst ? () => widget.onPageChanged(1) : null,
+            tooltip: 'First page (Home)',
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
 
-          const SizedBox(width: 16),
+          const SizedBox(width: 4),
+
+          // Previous page button
+          IconButton(
+            icon: const Icon(Icons.chevron_left, size: 20),
+            onPressed: canGoPrevious ? widget.onPreviousPage : null,
+            tooltip: 'Previous page (← or PgUp)',
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
+
+          const SizedBox(width: 12),
 
           // Page indicator and input
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Page ', style: TextStyle(fontSize: 16)),
+              Text(
+                'Page ',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
               SizedBox(
-                width: 50,
+                width: 45,
+                height: 28,
                 child: TextField(
                   controller: _pageController,
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.center,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  decoration: InputDecoration(
                     isDense: true,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 8,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                      ),
                     ),
-                    border: OutlineInputBorder(),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 1.5,
+                      ),
+                    ),
                   ),
                   onTap: () {
                     setState(() => _isEditingPage = true);
-                    _pageController.selection = TextSelection(
-                      baseOffset: 0,
-                      extentOffset: _pageController.text.length,
-                    );
+                    _pageController.selection = TextSelection(baseOffset: 0, extentOffset: _pageController.text.length);
                   },
                   onSubmitted: (String value) => _handlePageSubmit(),
                   onEditingComplete: _handlePageSubmit,
@@ -135,18 +176,34 @@ class _PageNavigationControlsState extends State<PageNavigationControls> {
               ),
               Text(
                 ' of ${widget.totalPages}',
-                style: const TextStyle(fontSize: 16),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
 
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
 
           // Next page button
           IconButton(
-            icon: const Icon(Icons.chevron_right),
+            icon: const Icon(Icons.chevron_right, size: 20),
             onPressed: canGoNext ? widget.onNextPage : null,
-            tooltip: 'Next page',
+            tooltip: 'Next page (→ or PgDn)',
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
+
+          const SizedBox(width: 4),
+
+          // Last page button
+          IconButton(
+            icon: const Icon(Icons.last_page, size: 20),
+            onPressed: canGoToLast ? () => widget.onPageChanged(widget.totalPages) : null,
+            tooltip: 'Last page (End)',
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
         ],
       ),

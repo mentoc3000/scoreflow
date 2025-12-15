@@ -41,28 +41,28 @@ class RecentFilesList extends StatelessWidget {
     if (recentFiles.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(32.0),
+          padding: const EdgeInsets.all(48.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 Icons.description_outlined,
                 size: 64,
-                color: Colors.grey[400],
+                color: Theme.of(context).colorScheme.outlineVariant,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               Text(
                 'No recent files',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[700],
-                ),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Open a PDF file to get started',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                'Your recently opened PDFs will appear here',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
               ),
             ],
           ),
@@ -72,20 +72,31 @@ class RecentFilesList extends StatelessWidget {
 
     return ListView.builder(
       itemCount: recentFiles.length,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
       itemBuilder: (BuildContext context, int index) {
         final RecentFile file = recentFiles[index];
-        return Card(
+        return Container(
           margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+              width: 1,
+            ),
+          ),
           child: ListTile(
-            leading: const Icon(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: Icon(
               Icons.picture_as_pdf,
-              color: Colors.red,
-              size: 32,
+              color: Theme.of(context).colorScheme.error,
+              size: 28,
             ),
             title: Text(
               file.name,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -95,14 +106,14 @@ class RecentFilesList extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   file.path,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: Theme.of(context).textTheme.bodySmall,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Opened ${_formatDate(file.lastOpened)}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  style: Theme.of(context).textTheme.labelSmall,
                 ),
               ],
             ),
@@ -112,12 +123,17 @@ class RecentFilesList extends StatelessWidget {
                 // Delete button
                 if (onFileRemoved != null)
                   IconButton(
-                    icon: const Icon(Icons.close, size: 20),
+                    icon: const Icon(Icons.close, size: 18),
                     tooltip: 'Remove from recent files',
                     onPressed: () => onFileRemoved!(file.path),
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    padding: const EdgeInsets.all(8),
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                   ),
-                const Icon(Icons.chevron_right),
+                Icon(
+                  Icons.chevron_right,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ],
             ),
             onTap: () => onFileSelected(file.path),

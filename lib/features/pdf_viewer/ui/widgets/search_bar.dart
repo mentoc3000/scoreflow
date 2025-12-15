@@ -33,10 +33,7 @@ class _SearchBarState extends State<SearchBar> {
   void initState() {
     super.initState();
     _searchController = TextEditingController(text: widget.query ?? '');
-    // Request focus when search bar opens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _searchFocusNode.requestFocus();
-    });
+    // Don't auto-focus search field to keep keyboard shortcuts working
   }
 
   @override
@@ -67,29 +64,49 @@ class _SearchBarState extends State<SearchBar> {
     final bool canNavigate = hasResults && !widget.isSearching;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border(
-          bottom: BorderSide(color: Colors.grey[300]!),
+          bottom: BorderSide(
+            color: Theme.of(context).colorScheme.outlineVariant,
+            width: 1,
+          ),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         children: [
           // Search icon
-          const Icon(Icons.search, size: 20),
-          const SizedBox(width: 8),
+          Icon(
+            Icons.search,
+            size: 18,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 12),
 
           // Search input field
           Expanded(
             child: TextField(
               controller: _searchController,
               focusNode: _searchFocusNode,
-              decoration: const InputDecoration(
+              style: Theme.of(context).textTheme.bodyMedium,
+              cursorHeight: 16,
+              decoration: InputDecoration(
                 hintText: 'Search in document...',
+                hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                 border: InputBorder.none,
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                contentPadding: EdgeInsets.zero,
               ),
               onSubmitted: (_) => _handleSubmit(),
               onChanged: (String value) {
@@ -100,67 +117,69 @@ class _SearchBarState extends State<SearchBar> {
             ),
           ),
 
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
 
           // Loading indicator or result count
           if (widget.isSearching)
-            const SizedBox(
-              width: 80,
+            SizedBox(
+              width: 70,
               child: Center(
                 child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
               ),
             )
           else if (hasResults)
             SizedBox(
-              width: 80,
+              width: 70,
               child: Text(
                 '${widget.currentResultIndex + 1} of ${widget.totalResults}',
-                style: const TextStyle(fontSize: 14),
+                style: Theme.of(context).textTheme.labelMedium,
                 textAlign: TextAlign.center,
               ),
             )
           else if (_searchController.text.isNotEmpty)
-            const SizedBox(
-              width: 80,
+            SizedBox(
+              width: 70,
               child: Text(
                 'No results',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                style: Theme.of(context).textTheme.labelMedium,
                 textAlign: TextAlign.center,
               ),
             )
           else
-            const SizedBox(width: 80),
+            const SizedBox(width: 70),
 
           // Previous result button
           IconButton(
-            icon: const Icon(Icons.keyboard_arrow_up),
+            icon: const Icon(Icons.keyboard_arrow_up, size: 20),
             tooltip: 'Previous (Shift+Enter)',
-            iconSize: 20,
-            onPressed: canNavigate
-                ? () => context.read<PdfViewerBloc>().add(const SearchPreviousRequested())
-                : null,
+            onPressed: canNavigate ? () => context.read<PdfViewerBloc>().add(const SearchPreviousRequested()) : null,
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
 
           // Next result button
           IconButton(
-            icon: const Icon(Icons.keyboard_arrow_down),
+            icon: const Icon(Icons.keyboard_arrow_down, size: 20),
             tooltip: 'Next (Enter)',
-            iconSize: 20,
-            onPressed: canNavigate
-                ? () => context.read<PdfViewerBloc>().add(const SearchNextRequested())
-                : null,
+            onPressed: canNavigate ? () => context.read<PdfViewerBloc>().add(const SearchNextRequested()) : null,
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
 
           // Close button
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close, size: 18),
             tooltip: 'Close search (Esc)',
-            iconSize: 20,
             onPressed: widget.onClose,
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
         ],
       ),
