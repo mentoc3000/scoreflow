@@ -31,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: BlocBuilder<PdfViewerBloc, PdfViewerState>(
         builder: (BuildContext context, PdfViewerState state) {
           if (state is PdfViewerInitial) {
