@@ -315,7 +315,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                               decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(8)),
                               child: const Text(
-                                'Distraction-Free Mode • Press ⌘⇧F or Esc to exit',
+                                'Focus Mode • Press ⌘⇧F or Esc to exit',
                                 style: TextStyle(color: Colors.white, fontSize: 14),
                               ),
                             ),
