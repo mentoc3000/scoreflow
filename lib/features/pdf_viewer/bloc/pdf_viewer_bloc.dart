@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:macos_secure_bookmarks/macos_secure_bookmarks.dart';
+import 'package:path/path.dart' as path;
 import 'package:pdfrx/pdfrx.dart';
 
 import '../../../core/config/app_config.dart';
@@ -18,6 +19,8 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
   final RecentFilesRepository _recentFilesRepository;
   final SecureBookmarks _secureBookmarks = SecureBookmarks();
   PdfDocument? _currentDocument;
+  String? _currentSecurityScopedPath; // Track path with active security-scoped access
+  String? _currentSearchQuery; // Track current search to detect cancellation
 
   PdfViewerBloc({required RecentFilesRepository recentFilesRepository})
     : _recentFilesRepository = recentFilesRepository,
@@ -74,7 +77,7 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
         final String? filePath = result.files.first.path;
         if (filePath != null) {
           // Save the directory for next time
-          final String directory = filePath.substring(0, filePath.lastIndexOf('/'));
+          final String directory = path.dirname(filePath);
           await _recentFilesRepository.setLastDirectory(directory);
 
           add(FileSelected(filePath));
@@ -113,10 +116,7 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
 
     // Try to restore file access using security-scoped bookmark
     final List<RecentFile> allRecentFiles = await _recentFilesRepository.getRecentFiles();
-    final RecentFile? recentFile = allRecentFiles.cast<RecentFile?>().firstWhere(
-      (f) => f?.path == event.filePath,
-      orElse: () => null,
-    );
+    final RecentFile? recentFile = allRecentFiles.where((f) => f.path == event.filePath).firstOrNull;
 
     String? resolvedPath;
     bool hasSecurityAccess = false;
@@ -185,6 +185,16 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
     emit(PdfViewerLoading(filePath));
 
     try {
+      // Stop previous security-scoped access if any
+      if (_currentSecurityScopedPath != null && Platform.isMacOS) {
+        try {
+          await _secureBookmarks.stopAccessingSecurityScopedResource(File(_currentSecurityScopedPath!));
+        } catch (e) {
+          debugPrint('Failed to stop previous security-scoped access: $e');
+        }
+        _currentSecurityScopedPath = null;
+      }
+
       // Close previous document if exists
       await _currentDocument?.dispose();
 
@@ -199,6 +209,8 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
         final Uint8List bytes = await file.readAsBytes();
         debugPrint('Read ${bytes.length} bytes from file');
         document = await PdfDocument.openData(bytes);
+        // Track that we have active security-scoped access for this path
+        _currentSecurityScopedPath = filePath;
       } else {
         // Direct file access for new files
         document = await PdfDocument.openFile(filePath);
@@ -214,7 +226,7 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
         return;
       }
 
-      final String fileName = filePath.split('/').last;
+      final String fileName = path.basename(filePath);
       final int totalPages = document.pages.length;
 
       // Create security-scoped bookmark if we don't have one already
@@ -310,6 +322,12 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
     // Add new page to history
     newHistory.add(newPage);
 
+    // Limit history size to prevent memory growth
+    if (newHistory.length > AppConfig.maxNavigationHistory) {
+      // Remove oldest entries
+      newHistory = newHistory.sublist(newHistory.length - AppConfig.maxNavigationHistory);
+    }
+
     return currentState.copyWith(
       currentPage: newPage,
       navigationHistory: newHistory,
@@ -369,6 +387,16 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
       await _currentDocument?.dispose();
       _currentDocument = null;
 
+      // Stop accessing security-scoped resource if on macOS
+      if (_currentSecurityScopedPath != null && Platform.isMacOS) {
+        try {
+          await _secureBookmarks.stopAccessingSecurityScopedResource(File(_currentSecurityScopedPath!));
+        } catch (e) {
+          debugPrint('Failed to stop security-scoped access: $e');
+        }
+        _currentSecurityScopedPath = null;
+      }
+
       final List<RecentFile> recentFiles = await _recentFilesRepository.getRecentFiles();
       emit(PdfViewerInitial(recentFiles: recentFiles));
     } catch (e) {
@@ -384,6 +412,8 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
       // Validate page number
       if (event.pageNumber >= 1 && event.pageNumber <= loadedState.totalPages) {
         emit(_addToNavigationHistory(loadedState, event.pageNumber));
+      } else {
+        debugPrint('Invalid bookmark page number: ${event.pageNumber}, total pages: ${loadedState.totalPages}');
       }
     }
   }
@@ -405,6 +435,12 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
         final int newIndex = currentState.navigationHistoryIndex - 1;
         final int targetPage = currentState.navigationHistory[newIndex];
 
+        // Validate page is within bounds
+        if (targetPage < 1 || targetPage > currentState.totalPages) {
+          debugPrint('Invalid navigation history page: $targetPage');
+          return;
+        }
+
         emit(currentState.copyWith(currentPage: targetPage, navigationHistoryIndex: newIndex));
       }
     }
@@ -418,6 +454,12 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
       if (currentState.canGoForward) {
         final int newIndex = currentState.navigationHistoryIndex + 1;
         final int targetPage = currentState.navigationHistory[newIndex];
+
+        // Validate page is within bounds
+        if (targetPage < 1 || targetPage > currentState.totalPages) {
+          debugPrint('Invalid navigation history page: $targetPage');
+          return;
+        }
 
         emit(currentState.copyWith(currentPage: targetPage, navigationHistoryIndex: newIndex));
       }
@@ -473,20 +515,36 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
 
       if (event.query.isEmpty) {
         // Clear search
+        _currentSearchQuery = null;
         emit(
-          currentState.copyWith(searchQuery: '', searchResults: [], currentSearchResultIndex: -1, isSearching: false),
+          currentState.copyWith(
+            clearSearchQuery: true,
+            searchResults: [],
+            currentSearchResultIndex: -1,
+            isSearching: false,
+          ),
         );
         return;
       }
+
+      // Store current search query for cancellation detection
+      _currentSearchQuery = event.query;
+      final String searchId = event.query; // Capture for closure
 
       // Start searching
       emit(currentState.copyWith(searchQuery: event.query, isSearching: true));
 
       try {
-        // Search through all pages
+        // Search through all pages with cancellation support
         final List<SearchResult> allResults = [];
 
         for (int i = 0; i < currentState.document.pages.length; i++) {
+          // Check if search was cancelled
+          if (_currentSearchQuery != searchId) {
+            debugPrint('Search cancelled for query: $searchId');
+            return; // Exit without emitting
+          }
+
           final PdfPage page = currentState.document.pages[i];
 
           // Load text from page
@@ -496,6 +554,13 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
               debugPrint('No text found on page ${i + 1}');
               continue;
             }
+
+            // Check again if search was cancelled (after async operation)
+            if (_currentSearchQuery != searchId) {
+              debugPrint('Search cancelled for query: $searchId');
+              return;
+            }
+
             // Search for query in page text (case-insensitive)
             final String text = pageText.fullText.toLowerCase();
             final String query = event.query.toLowerCase();
@@ -509,6 +574,23 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
             debugPrint('Error loading text from page ${i + 1}: $e');
             // Continue with next page
           }
+
+          // Emit intermediate results every 10 pages for better UX
+          if ((i + 1) % 10 == 0 && allResults.isNotEmpty && _currentSearchQuery == searchId) {
+            emit(
+              currentState.copyWith(
+                searchResults: allResults,
+                currentSearchResultIndex: 0,
+                isSearching: true, // Still searching
+              ),
+            );
+          }
+        }
+
+        // Final check if search was cancelled
+        if (_currentSearchQuery != searchId) {
+          debugPrint('Search cancelled for query: $searchId');
+          return;
         }
 
         emit(
@@ -531,7 +613,10 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
         }
       } catch (e) {
         debugPrint('Error searching PDF: $e');
-        emit(currentState.copyWith(searchResults: [], currentSearchResultIndex: -1, isSearching: false));
+        // Only emit error state if this search wasn't cancelled
+        if (_currentSearchQuery == searchId) {
+          emit(currentState.copyWith(searchResults: [], currentSearchResultIndex: -1, isSearching: false));
+        }
       }
     }
   }
@@ -544,9 +629,15 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
       if (currentState.searchResults.isEmpty) return;
 
       final int nextIndex = (currentState.currentSearchResultIndex + 1) % currentState.searchResults.length;
-      final int pageNumber = currentState.searchResults[nextIndex].pageNumber;
+      final SearchResult result = currentState.searchResults[nextIndex];
 
-      emit(_addToNavigationHistory(currentState.copyWith(currentSearchResultIndex: nextIndex), pageNumber));
+      // Validate page number is within bounds
+      if (result.pageNumber < 1 || result.pageNumber > currentState.totalPages) {
+        debugPrint('Invalid search result page number: ${result.pageNumber}');
+        return;
+      }
+
+      emit(_addToNavigationHistory(currentState.copyWith(currentSearchResultIndex: nextIndex), result.pageNumber));
     }
   }
 
@@ -559,17 +650,29 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
 
       final int previousIndex = currentState.currentSearchResultIndex - 1;
       final int wrappedIndex = previousIndex < 0 ? currentState.searchResults.length - 1 : previousIndex;
-      final int pageNumber = currentState.searchResults[wrappedIndex].pageNumber;
+      final SearchResult result = currentState.searchResults[wrappedIndex];
 
-      emit(_addToNavigationHistory(currentState.copyWith(currentSearchResultIndex: wrappedIndex), pageNumber));
+      // Validate page number is within bounds
+      if (result.pageNumber < 1 || result.pageNumber > currentState.totalPages) {
+        debugPrint('Invalid search result page number: ${result.pageNumber}');
+        return;
+      }
+
+      emit(_addToNavigationHistory(currentState.copyWith(currentSearchResultIndex: wrappedIndex), result.pageNumber));
     }
   }
 
   /// Handles search close request
   Future<void> _onSearchClosed(SearchClosed event, Emitter<PdfViewerState> emit) async {
     if (state is PdfViewerLoaded) {
+      _currentSearchQuery = null; // Cancel any ongoing search
       final PdfViewerLoaded currentState = state as PdfViewerLoaded;
-      emit(currentState.copyWith(searchQuery: '', searchResults: [], currentSearchResultIndex: -1, isSearching: false));
+      emit(currentState.copyWith(
+        clearSearchQuery: true,
+        searchResults: [],
+        currentSearchResultIndex: -1,
+        isSearching: false,
+      ));
     }
   }
 
@@ -583,6 +686,14 @@ class PdfViewerBloc extends Bloc<PdfViewerEvent, PdfViewerState> {
 
   @override
   Future<void> close() async {
+    // Stop security-scoped access if any
+    if (_currentSecurityScopedPath != null && Platform.isMacOS) {
+      try {
+        await _secureBookmarks.stopAccessingSecurityScopedResource(File(_currentSecurityScopedPath!));
+      } catch (e) {
+        debugPrint('Failed to stop security-scoped access on close: $e');
+      }
+    }
     await _currentDocument?.dispose();
     return super.close();
   }

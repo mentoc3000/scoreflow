@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:path/path.dart' as path;
 
 /// Base class for all tab types
 abstract class BaseTab extends Equatable {
@@ -72,7 +73,7 @@ class DocumentTab extends BaseTab {
 
   /// Creates a DocumentTab from a file path
   factory DocumentTab.fromPath(String filePath, {String? bookmark}) {
-    final String fileName = filePath.split('/').last;
+    final String fileName = path.basename(filePath);
     return DocumentTab(
       id: 'doc_${DateTime.now().millisecondsSinceEpoch}',
       filePath: filePath,

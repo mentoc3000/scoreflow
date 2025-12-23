@@ -23,6 +23,7 @@ class AppConfig {
   // Page Navigation
   static const double pageGap = 8.0;
   static const double pagePadding = 16.0;
+  static const int maxNavigationHistory = 50; // Limit navigation history size
 
   // Zoom Configuration
   static const double minZoomLevel = 0.25;

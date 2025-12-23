@@ -245,7 +245,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                             ),
                             child: Row(
                               children: [
-                                Expanded(child: const AnnotationToolbar()),
+                                const Expanded(child: AnnotationToolbar()),
                                 IconButton(
                                   icon: const Icon(Icons.close),
                                   onPressed: () {
@@ -310,7 +310,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                                     document: state.document,
                                     currentPage: state.currentPage,
                                     totalPages: state.totalPages,
-                                    zoomLevel: 1.0,
+                                    zoomLevel: state.zoomLevel,
                                     onPageChanged: (int pageNumber) {
                                       context.read<PdfViewerBloc>().add(PageViewChanged(pageNumber));
                                     },
