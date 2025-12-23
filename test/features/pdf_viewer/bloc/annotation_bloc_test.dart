@@ -1,5 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:bloc_test/bloc_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:scoreflow/features/pdf_viewer/bloc/annotation_bloc.dart';
 import 'package:scoreflow/features/pdf_viewer/bloc/annotation_event.dart';
@@ -29,14 +29,7 @@ void main() {
         build: () {
           when(() => repository.loadAnnotations(any())).thenAnswer(
             (_) async => [
-              const TextAnnotation(
-                id: '1',
-                pageNumber: 1,
-                x: 0.5,
-                y: 0.5,
-                text: 'Test annotation',
-                fontSize: 14.0,
-              ),
+              const TextAnnotation(id: '1', pageNumber: 1, x: 0.5, y: 0.5, text: 'Test annotation', fontSize: 14.0),
             ],
           );
           return AnnotationBloc(repository: repository);
@@ -48,14 +41,7 @@ void main() {
             isLoading: false,
             pdfPath: '/test.pdf',
             annotations: const [
-              TextAnnotation(
-                id: '1',
-                pageNumber: 1,
-                x: 0.5,
-                y: 0.5,
-                text: 'Test annotation',
-                fontSize: 14.0,
-              ),
+              TextAnnotation(id: '1', pageNumber: 1, x: 0.5, y: 0.5, text: 'Test annotation', fontSize: 14.0),
             ],
           ),
         ],
@@ -93,10 +79,7 @@ void main() {
         wait: const Duration(milliseconds: 600), // Wait for debounce
         expect: () => [
           // Only one emission for the data change (isSaving/selectedAnnotationId/isAddMode not in props)
-          const AnnotationState(
-            pdfPath: '/test.pdf',
-            annotations: [testAnnotation],
-          ),
+          const AnnotationState(pdfPath: '/test.pdf', annotations: [testAnnotation]),
         ],
         verify: (_) {
           verify(() => repository.saveAnnotations('/test.pdf', [testAnnotation])).called(1);
@@ -113,14 +96,11 @@ void main() {
         act: (bloc) async {
           bloc.add(const AnnotationAdded(testAnnotation));
           await Future.delayed(const Duration(milliseconds: 100));
-          bloc.add(const AnnotationAdded(TextAnnotation(
-            id: '2',
-            pageNumber: 1,
-            x: 0.6,
-            y: 0.6,
-            text: 'Second annotation',
-            fontSize: 14.0,
-          )));
+          bloc.add(
+            const AnnotationAdded(
+              TextAnnotation(id: '2', pageNumber: 1, x: 0.6, y: 0.6, text: 'Second annotation', fontSize: 14.0),
+            ),
+          );
         },
         wait: const Duration(milliseconds: 700), // Wait for debounce
         verify: (_) {
@@ -140,14 +120,7 @@ void main() {
         fontSize: 14.0,
       );
 
-      const updatedAnnotation = TextAnnotation(
-        id: '1',
-        pageNumber: 1,
-        x: 0.6,
-        y: 0.6,
-        text: 'Updated',
-        fontSize: 16.0,
-      );
+      const updatedAnnotation = TextAnnotation(id: '1', pageNumber: 1, x: 0.6, y: 0.6, text: 'Updated', fontSize: 16.0);
 
       blocTest<AnnotationBloc, AnnotationState>(
         'updates annotation and saves',
@@ -155,31 +128,18 @@ void main() {
           when(() => repository.saveAnnotations(any(), any())).thenAnswer((_) async {});
           return AnnotationBloc(repository: repository);
         },
-        seed: () => const AnnotationState(
-          pdfPath: '/test.pdf',
-          annotations: [initialAnnotation],
-        ),
+        seed: () => const AnnotationState(pdfPath: '/test.pdf', annotations: [initialAnnotation]),
         act: (bloc) => bloc.add(const AnnotationUpdated(updatedAnnotation)),
         wait: const Duration(milliseconds: 600),
         expect: () => [
           // Only one emission for the data change (isSaving not in props)
-          const AnnotationState(
-            pdfPath: '/test.pdf',
-            annotations: [updatedAnnotation],
-          ),
+          const AnnotationState(pdfPath: '/test.pdf', annotations: [updatedAnnotation]),
         ],
       );
     });
 
     group('AnnotationDeleted', () {
-      const annotation = TextAnnotation(
-        id: '1',
-        pageNumber: 1,
-        x: 0.5,
-        y: 0.5,
-        text: 'To delete',
-        fontSize: 14.0,
-      );
+      const annotation = TextAnnotation(id: '1', pageNumber: 1, x: 0.5, y: 0.5, text: 'To delete', fontSize: 14.0);
 
       blocTest<AnnotationBloc, AnnotationState>(
         'deletes annotation and clears selection if selected',
@@ -187,19 +147,12 @@ void main() {
           when(() => repository.saveAnnotations(any(), any())).thenAnswer((_) async {});
           return AnnotationBloc(repository: repository);
         },
-        seed: () => const AnnotationState(
-          pdfPath: '/test.pdf',
-          annotations: [annotation],
-          selectedAnnotationId: '1',
-        ),
+        seed: () => const AnnotationState(pdfPath: '/test.pdf', annotations: [annotation], selectedAnnotationId: '1'),
         act: (bloc) => bloc.add(const AnnotationDeleted('1')),
         wait: const Duration(milliseconds: 600),
         expect: () => [
           // Only one emission for the data change (isSaving not in props)
-          const AnnotationState(
-            pdfPath: '/test.pdf',
-            annotations: [],
-          ),
+          const AnnotationState(pdfPath: '/test.pdf', annotations: []),
         ],
       );
     });
@@ -215,23 +168,7 @@ void main() {
     // });
 
     group('Undo/Redo', () {
-      const annotation1 = TextAnnotation(
-        id: '1',
-        pageNumber: 1,
-        x: 0.5,
-        y: 0.5,
-        text: 'First',
-        fontSize: 14.0,
-      );
-
-      const annotation2 = TextAnnotation(
-        id: '2',
-        pageNumber: 1,
-        x: 0.6,
-        y: 0.6,
-        text: 'Second',
-        fontSize: 14.0,
-      );
+      const annotation1 = TextAnnotation(id: '1', pageNumber: 1, x: 0.5, y: 0.5, text: 'First', fontSize: 14.0);
 
       blocTest<AnnotationBloc, AnnotationState>(
         'can undo annotation addition',
