@@ -182,36 +182,6 @@ class _TabbedViewerContentState extends State<_TabbedViewerContent> {
                   ),
                 ),
               ),
-              // Integrated toolbar for PDF viewer
-              BlocBuilder<PdfViewerBloc, PdfViewerState>(
-                builder: (context, pdfState) {
-                  if (pdfState is PdfViewerLoaded && !pdfState.isDistractionFreeMode) {
-                    return Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Vertical divider
-                        Container(
-                          height: 32,
-                          width: 1,
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                          margin: const EdgeInsets.symmetric(horizontal: 8),
-                        ),
-                        // Bookmark toggle
-                        IconButton(
-                          icon: Icon(pdfState.isBookmarkSidebarOpen ? Icons.bookmark : Icons.bookmark_border, size: 20),
-                          tooltip: pdfState.isBookmarkSidebarOpen ? 'Hide bookmarks (⌘B)' : 'Show bookmarks (⌘B)',
-                          onPressed: () {
-                            context.read<PdfViewerBloc>().add(const BookmarkSidebarToggled());
-                          },
-                          padding: const EdgeInsets.all(8),
-                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                        ),
-                      ],
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
               // New tab button
               IconButton(
                 icon: const Icon(Icons.add, size: 20),

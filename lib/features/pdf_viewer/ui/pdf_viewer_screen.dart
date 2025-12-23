@@ -3,10 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/config/app_config.dart';
+import '../bloc/annotation_bloc.dart';
+import '../bloc/annotation_event.dart';
 import '../bloc/pdf_viewer_bloc.dart';
 import '../bloc/pdf_viewer_event.dart';
 import '../bloc/pdf_viewer_state.dart';
 import '../models/pdf_bookmark_item.dart';
+import 'widgets/annotation_toolbar.dart';
 import 'widgets/bookmark_sidebar.dart';
 import 'widgets/multi_page_viewer.dart';
 import 'widgets/page_navigation_controls.dart';
@@ -24,6 +27,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   final FocusNode _focusNode = FocusNode();
   double _sidebarWidth = AppConfig.defaultSidebarWidth;
   bool _isSearchOpen = false;
+  bool _isAnnotationToolbarOpen = false;
 
   @override
   void initState() {
@@ -59,12 +63,23 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
         return;
       }
 
-      // Handle Esc to close search or exit distraction-free mode
+      // Handle Esc to close search, annotations, or exit distraction-free mode
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         final PdfViewerState state = bloc.state;
         if (state is PdfViewerLoaded && state.isDistractionFreeMode) {
           bloc.add(const DistractionFreeModeToggled());
           // Request focus back after toggling
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _focusNode.requestFocus();
+          });
+          return;
+        }
+        if (_isAnnotationToolbarOpen) {
+          setState(() {
+            _isAnnotationToolbarOpen = false;
+          });
+          context.read<AnnotationBloc>().add(const AnnotationSelected(null));
+          // Request focus back after closing annotations
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _focusNode.requestFocus();
           });
@@ -144,8 +159,21 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
           // Request focus when user taps anywhere in the viewer
           _focusNode.requestFocus();
         },
-        child: BlocBuilder<PdfViewerBloc, PdfViewerState>(
-          builder: (BuildContext context, PdfViewerState state) {
+        child: BlocListener<PdfViewerBloc, PdfViewerState>(
+          listener: (context, state) {
+            // Load annotations when PDF is loaded
+            if (state is PdfViewerLoaded) {
+              context.read<AnnotationBloc>().add(
+                    AnnotationsLoadRequested(state.filePath),
+                  );
+            }
+            // Clear annotations when file is closed
+            if (state is PdfViewerInitial || state is PdfViewerError) {
+              context.read<AnnotationBloc>().add(const AnnotationsCleared());
+            }
+          },
+          child: BlocBuilder<PdfViewerBloc, PdfViewerState>(
+            builder: (BuildContext context, PdfViewerState state) {
             if (state is PdfViewerLoading) {
               return Scaffold(
                 appBar: AppBar(
@@ -189,6 +217,39 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                                 _focusNode.requestFocus();
                               });
                             },
+                          ),
+
+                        // Annotation toolbar (shown when annotation mode is active and not in distraction-free mode)
+                        if (_isAnnotationToolbarOpen && !state.isDistractionFreeMode)
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: Theme.of(context).dividerColor,
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(child: const AnnotationToolbar()),
+                                IconButton(
+                                  icon: const Icon(Icons.close),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isAnnotationToolbarOpen = false;
+                                    });
+                                    context.read<AnnotationBloc>().add(const AnnotationSelected(null));
+                                    // Request focus back after closing
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      _focusNode.requestFocus();
+                                    });
+                                  },
+                                  tooltip: 'Close annotations',
+                                ),
+                              ],
+                            ),
                           ),
 
                         // PDF Display with Sidebar
@@ -251,20 +312,62 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                           ),
                         ),
 
-                        // Page Navigation Controls (hidden in distraction-free mode)
+                        // Page Navigation Controls with buttons (hidden in distraction-free mode)
                         if (!state.isDistractionFreeMode)
-                          PageNavigationControls(
-                            currentPage: state.currentPage,
-                            totalPages: state.totalPages,
-                            onPreviousPage: () {
-                              context.read<PdfViewerBloc>().add(const PreviousPageRequested());
-                            },
-                            onNextPage: () {
-                              context.read<PdfViewerBloc>().add(const NextPageRequested());
-                            },
-                            onPageChanged: (int pageNumber) {
-                              context.read<PdfViewerBloc>().add(PageNumberChanged(pageNumber));
-                            },
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
+                              border: Border(
+                                top: BorderSide(
+                                  color: Theme.of(context).dividerColor,
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                // Bookmark button (left)
+                                IconButton(
+                                  icon: Icon(state.isBookmarkSidebarOpen ? Icons.bookmark : Icons.bookmark_border),
+                                  onPressed: () {
+                                    context.read<PdfViewerBloc>().add(const BookmarkSidebarToggled());
+                                  },
+                                  tooltip: state.isBookmarkSidebarOpen ? 'Hide bookmarks (⌘B)' : 'Show bookmarks (⌘B)',
+                                  isSelected: state.isBookmarkSidebarOpen,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: PageNavigationControls(
+                                    currentPage: state.currentPage,
+                                    totalPages: state.totalPages,
+                                    onPreviousPage: () {
+                                      context.read<PdfViewerBloc>().add(const PreviousPageRequested());
+                                    },
+                                    onNextPage: () {
+                                      context.read<PdfViewerBloc>().add(const NextPageRequested());
+                                    },
+                                    onPageChanged: (int pageNumber) {
+                                      context.read<PdfViewerBloc>().add(PageNumberChanged(pageNumber));
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Annotation button (right)
+                                IconButton(
+                                  icon: const Icon(Icons.edit_note),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isAnnotationToolbarOpen = !_isAnnotationToolbarOpen;
+                                      if (_isAnnotationToolbarOpen) {
+                                        _isSearchOpen = false;
+                                      }
+                                    });
+                                  },
+                                  tooltip: 'Annotations',
+                                  isSelected: _isAnnotationToolbarOpen,
+                                ),
+                              ],
+                            ),
                           ),
                       ],
                     ),
@@ -298,6 +401,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
             // Fallback for unexpected states
             return const Scaffold(body: Center(child: Text('Unexpected state')));
           },
+          ),
         ),
       ),
     );

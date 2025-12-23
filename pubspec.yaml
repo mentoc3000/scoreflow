@@ -55,6 +55,9 @@ dependencies:
   # macOS file access bookmarks
   macos_secure_bookmarks: ^0.2.1
 
+  # UUID generation for annotations
+  uuid: ^4.5.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
