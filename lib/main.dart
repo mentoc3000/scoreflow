@@ -8,11 +8,13 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/theme/app_theme.dart';
+import 'features/pdf_viewer/bloc/annotation_bloc.dart';
 import 'features/pdf_viewer/bloc/pdf_viewer_bloc.dart';
 import 'features/pdf_viewer/bloc/pdf_viewer_event.dart';
 import 'features/pdf_viewer/bloc/pdf_viewer_state.dart';
 import 'features/pdf_viewer/bloc/tab_manager_bloc.dart';
 import 'features/pdf_viewer/bloc/tab_manager_event.dart';
+import 'features/pdf_viewer/repositories/annotation_repository.dart';
 import 'features/pdf_viewer/repositories/recent_files_repository.dart';
 import 'features/pdf_viewer/repositories/tab_persistence_repository.dart';
 import 'features/pdf_viewer/ui/tabbed_viewer_screen.dart';
@@ -27,9 +29,14 @@ void main() async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   final RecentFilesRepository recentFilesRepository = RecentFilesRepository(prefs);
   final TabPersistenceRepository tabPersistenceRepository = TabPersistenceRepository(prefs);
+  final AnnotationRepository annotationRepository = AnnotationRepository();
 
   runApp(
-    ScoreFlowApp(recentFilesRepository: recentFilesRepository, tabPersistenceRepository: tabPersistenceRepository),
+    ScoreFlowApp(
+      recentFilesRepository: recentFilesRepository,
+      tabPersistenceRepository: tabPersistenceRepository,
+      annotationRepository: annotationRepository,
+    ),
   );
 }
 
@@ -69,8 +76,14 @@ Future<void> _initializePdfrxCache() async {
 class ScoreFlowApp extends StatelessWidget {
   final RecentFilesRepository recentFilesRepository;
   final TabPersistenceRepository tabPersistenceRepository;
+  final AnnotationRepository annotationRepository;
 
-  const ScoreFlowApp({super.key, required this.recentFilesRepository, required this.tabPersistenceRepository});
+  const ScoreFlowApp({
+    super.key,
+    required this.recentFilesRepository,
+    required this.tabPersistenceRepository,
+    required this.annotationRepository,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -81,6 +94,7 @@ class ScoreFlowApp extends StatelessWidget {
           create: (BuildContext context) =>
               TabManagerBloc(persistenceRepository: tabPersistenceRepository)..add(const TabsRestoreRequested()),
         ),
+        BlocProvider(create: (BuildContext context) => AnnotationBloc(repository: annotationRepository)),
       ],
       child: BlocBuilder<PdfViewerBloc, PdfViewerState>(
         builder: (context, pdfState) {

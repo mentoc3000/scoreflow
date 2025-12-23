@@ -37,6 +37,7 @@ dependencies:
 
   # State management
   flutter_bloc: ^9.1.1
+  replay_bloc: ^0.3.0
   equatable: ^2.0.5
 
   # PDF rendering
@@ -55,6 +56,12 @@ dependencies:
   # macOS file access bookmarks
   macos_secure_bookmarks: ^0.2.1
 
+  # UUID generation for annotations
+  uuid: ^4.5.1
+
+  # Hashing for annotation file names
+  crypto: ^3.0.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -68,6 +75,10 @@ dev_dependencies:
 
   # App icon generation
   flutter_launcher_icons: ^0.14.2
+
+  # Testing utilities
+  bloc_test: ^10.0.0
+  mocktail: ^1.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

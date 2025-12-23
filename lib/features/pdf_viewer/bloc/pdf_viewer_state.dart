@@ -85,6 +85,7 @@ class PdfViewerLoaded extends PdfViewerState {
     int? currentSearchResultIndex,
     bool? isSearching,
     bool? isDistractionFreeMode,
+    bool clearSearchQuery = false,
   }) {
     return PdfViewerLoaded(
       document: document ?? this.document,
@@ -97,7 +98,7 @@ class PdfViewerLoaded extends PdfViewerState {
       navigationHistory: navigationHistory ?? this.navigationHistory,
       navigationHistoryIndex: navigationHistoryIndex ?? this.navigationHistoryIndex,
       zoomLevel: zoomLevel ?? this.zoomLevel,
-      searchQuery: searchQuery ?? this.searchQuery,
+      searchQuery: clearSearchQuery ? null : (searchQuery ?? this.searchQuery),
       searchResults: searchResults ?? this.searchResults,
       currentSearchResultIndex: currentSearchResultIndex ?? this.currentSearchResultIndex,
       isSearching: isSearching ?? this.isSearching,

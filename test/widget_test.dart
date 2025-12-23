@@ -3,6 +3,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:scoreflow/main.dart';
+import 'package:scoreflow/features/pdf_viewer/repositories/annotation_repository.dart';
 import 'package:scoreflow/features/pdf_viewer/repositories/recent_files_repository.dart';
 import 'package:scoreflow/features/pdf_viewer/repositories/tab_persistence_repository.dart';
 
@@ -15,11 +16,13 @@ void main() {
         RecentFilesRepository(prefs);
     final TabPersistenceRepository tabPersistenceRepository =
         TabPersistenceRepository(prefs);
+    final AnnotationRepository annotationRepository = AnnotationRepository();
 
     // Build our app and trigger a frame.
     await tester.pumpWidget(ScoreFlowApp(
       recentFilesRepository: recentFilesRepository,
       tabPersistenceRepository: tabPersistenceRepository,
+      annotationRepository: annotationRepository,
     ));
 
     // Verify that the home screen shows up with the Open PDF button

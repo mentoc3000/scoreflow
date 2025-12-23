@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import 'annotation_overlay.dart';
 import 'pdf_link_handler.dart';
 
 /// Widget for rendering a single PDF page with text selection support
@@ -64,6 +65,11 @@ class PdfPageWidget extends StatelessWidget {
                   pageSize: Size(constraints.maxWidth, constraints.maxHeight),
                   onInternalLinkTap: onLinkTap,
                 ),
+              // Annotation overlay for text annotations
+              AnnotationOverlay(
+                pageNumber: pageNumber,
+                pageSize: Size(constraints.maxWidth, constraints.maxHeight),
+              ),
             ],
           );
         },

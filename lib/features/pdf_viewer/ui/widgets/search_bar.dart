@@ -33,14 +33,22 @@ class _SearchBarState extends State<SearchBar> {
   void initState() {
     super.initState();
     _searchController = TextEditingController(text: widget.query ?? '');
-    // Don't auto-focus search field to keep keyboard shortcuts working
+    // Auto-focus search field when search bar is opened
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _searchFocusNode.requestFocus();
+    });
   }
 
   @override
   void didUpdateWidget(SearchBar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.query != oldWidget.query && widget.query != _searchController.text) {
-      _searchController.text = widget.query ?? '';
+    // Only update the text if the query from the state is different from what's in the controller
+    // AND it's not null/empty (to prevent clearing user input)
+    if (widget.query != oldWidget.query &&
+        widget.query != null &&
+        widget.query!.isNotEmpty &&
+        widget.query != _searchController.text) {
+      _searchController.text = widget.query!;
     }
   }
 
@@ -55,6 +63,12 @@ class _SearchBarState extends State<SearchBar> {
     final String query = _searchController.text.trim();
     if (query.isNotEmpty) {
       context.read<PdfViewerBloc>().add(SearchQueryChanged(query));
+      // Keep focus in the search field after submitting
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _searchFocusNode.requestFocus();
+        }
+      });
     }
   }
 
