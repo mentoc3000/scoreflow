@@ -173,9 +173,12 @@ class _ToolbarButton extends StatelessWidget {
                 ? activeColor.withValues(alpha: 0.1)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
-            border: isActive
-                ? Border.all(color: activeColor.withValues(alpha: 0.3))
-                : null,
+            border: Border.all(
+              color: isActive
+                  ? activeColor.withValues(alpha: 0.3)
+                  : Colors.transparent,
+              width: 1,
+            ),
           ),
           child: Icon(
             icon,

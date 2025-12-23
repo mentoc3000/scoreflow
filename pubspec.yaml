@@ -58,6 +58,9 @@ dependencies:
   # UUID generation for annotations
   uuid: ^4.5.1
 
+  # Hashing for annotation file names
+  crypto: ^3.0.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
