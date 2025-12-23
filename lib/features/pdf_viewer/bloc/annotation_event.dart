@@ -1,9 +1,10 @@
 import 'package:equatable/equatable.dart';
+import 'package:replay_bloc/replay_bloc.dart';
 
 import '../models/text_annotation.dart';
 
 /// Base class for all annotation events
-abstract class AnnotationEvent extends Equatable {
+abstract class AnnotationEvent extends ReplayEvent with EquatableMixin {
   const AnnotationEvent();
 
   @override
@@ -95,3 +96,12 @@ class AnnotationsCleared extends AnnotationEvent {
   const AnnotationsCleared();
 }
 
+/// Event to undo the last annotation change
+class AnnotationUndoRequested extends AnnotationEvent {
+  const AnnotationUndoRequested();
+}
+
+/// Event to redo the last undone annotation change
+class AnnotationRedoRequested extends AnnotationEvent {
+  const AnnotationRedoRequested();
+}

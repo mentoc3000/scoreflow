@@ -157,7 +157,10 @@ class _AnnotationWidgetState extends State<_AnnotationWidget> {
   }
 
   void _onDragEnd(DragEndDetails details) {
-    if (_dragOffset == null) return;
+    if (_dragOffset == null || _dragOffset == Offset.zero) {
+      setState(() => _dragOffset = null);
+      return;
+    }
 
     // Calculate new normalized position
     final double currentX = widget.annotation.x * widget.pageSize.width;
@@ -166,12 +169,18 @@ class _AnnotationWidgetState extends State<_AnnotationWidget> {
     final double newX = (currentX + _dragOffset!.dx) / widget.pageSize.width;
     final double newY = (currentY + _dragOffset!.dy) / widget.pageSize.height;
 
-    context.read<AnnotationBloc>().add(
-          AnnotationUpdated(widget.annotation.copyWith(
-            x: newX.clamp(0.0, 1.0),
-            y: newY.clamp(0.0, 1.0),
-          )),
-        );
+    final double clampedX = newX.clamp(0.0, 1.0);
+    final double clampedY = newY.clamp(0.0, 1.0);
+
+    // Only update if position actually changed
+    if (clampedX != widget.annotation.x || clampedY != widget.annotation.y) {
+      context.read<AnnotationBloc>().add(
+            AnnotationUpdated(widget.annotation.copyWith(
+              x: clampedX,
+              y: clampedY,
+            )),
+          );
+    }
 
     setState(() => _dragOffset = null);
   }
@@ -275,4 +284,3 @@ class _AnnotationWidgetState extends State<_AnnotationWidget> {
     );
   }
 }
-

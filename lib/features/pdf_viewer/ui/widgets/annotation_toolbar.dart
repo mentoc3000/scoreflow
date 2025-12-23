@@ -21,6 +21,9 @@ class AnnotationToolbar extends StatelessWidget {
         final bool hasSelection = state.selectedAnnotationId != null;
         final double currentFontSize =
             state.selectedAnnotation?.fontSize ?? state.defaultFontSize;
+        final AnnotationBloc annotationBloc = context.read<AnnotationBloc>();
+        final bool canUndo = annotationBloc.canUndo;
+        final bool canRedo = annotationBloc.canRedo;
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -34,6 +37,39 @@ class AnnotationToolbar extends StatelessWidget {
                 isActive: state.isAddMode,
                 onPressed: () {
                   context.read<AnnotationBloc>().add(const AddModeToggled());
+                },
+              ),
+
+              const SizedBox(width: 24),
+
+              // Divider
+              Container(
+                width: 1,
+                height: 24,
+                color: Theme.of(context).dividerColor,
+              ),
+
+              const SizedBox(width: 24),
+
+              // Undo button
+              _ToolbarButton(
+                icon: Icons.undo,
+                label: 'Undo (⌘Z)',
+                isEnabled: canUndo,
+                onPressed: () {
+                  context.read<AnnotationBloc>().add(const AnnotationUndoRequested());
+                },
+              ),
+
+              const SizedBox(width: 8),
+
+              // Redo button
+              _ToolbarButton(
+                icon: Icons.redo,
+                label: 'Redo (⌘⇧Z)',
+                isEnabled: canRedo,
+                onPressed: () {
+                  context.read<AnnotationBloc>().add(const AnnotationRedoRequested());
                 },
               ),
 

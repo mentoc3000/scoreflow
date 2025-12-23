@@ -63,6 +63,18 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
         return;
       }
 
+      // Handle Cmd/Ctrl+Z for undo
+      if (event.logicalKey == LogicalKeyboardKey.keyZ && isMetaOrCtrl && !HardwareKeyboard.instance.isShiftPressed) {
+        context.read<AnnotationBloc>().add(const AnnotationUndoRequested());
+        return;
+      }
+
+      // Handle Cmd/Ctrl+Shift+Z for redo
+      if (event.logicalKey == LogicalKeyboardKey.keyZ && isMetaOrCtrl && HardwareKeyboard.instance.isShiftPressed) {
+        context.read<AnnotationBloc>().add(const AnnotationRedoRequested());
+        return;
+      }
+
       // Handle Esc to close search, annotations, or exit distraction-free mode
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         final PdfViewerState state = bloc.state;

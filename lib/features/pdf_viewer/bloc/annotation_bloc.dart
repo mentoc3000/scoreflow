@@ -1,13 +1,13 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:replay_bloc/replay_bloc.dart';
 
 import '../models/text_annotation.dart';
 import '../repositories/annotation_repository.dart';
 import 'annotation_event.dart';
 import 'annotation_state.dart';
 
-/// Bloc for managing text annotations on PDF pages
-class AnnotationBloc extends Bloc<AnnotationEvent, AnnotationState> {
+/// Bloc for managing text annotations on PDF pages with undo/redo support
+class AnnotationBloc extends ReplayBloc<AnnotationEvent, AnnotationState> {
   final AnnotationRepository _repository;
 
   AnnotationBloc({required AnnotationRepository repository})
@@ -23,6 +23,8 @@ class AnnotationBloc extends Bloc<AnnotationEvent, AnnotationState> {
     on<SelectedAnnotationFontSizeChanged>(_onSelectedAnnotationFontSizeChanged);
     on<AnnotationsSaveRequested>(_onAnnotationsSaveRequested);
     on<AnnotationsCleared>(_onAnnotationsCleared);
+    on<AnnotationUndoRequested>(_onAnnotationUndoRequested);
+    on<AnnotationRedoRequested>(_onAnnotationRedoRequested);
   }
 
   /// Loads annotations from file
@@ -178,5 +180,20 @@ class AnnotationBloc extends Bloc<AnnotationEvent, AnnotationState> {
 
     emit(state.copyWith(isSaving: false));
   }
-}
 
+  /// Handles undo request
+  void _onAnnotationUndoRequested(
+    AnnotationUndoRequested event,
+    Emitter<AnnotationState> emit,
+  ) {
+    undo();
+  }
+
+  /// Handles redo request
+  void _onAnnotationRedoRequested(
+    AnnotationRedoRequested event,
+    Emitter<AnnotationState> emit,
+  ) {
+    redo();
+  }
+}
