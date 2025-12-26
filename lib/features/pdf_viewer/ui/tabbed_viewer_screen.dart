@@ -200,8 +200,17 @@ class _TabItem extends StatefulWidget {
   final bool isActive;
   final VoidCallback onTap;
   final VoidCallback onClose;
+  final int index;
+  final Function(int oldIndex, int newIndex) onReorder;
 
-  const _TabItem({required this.tab, required this.isActive, required this.onTap, required this.onClose});
+  const _TabItem({
+    required this.tab,
+    required this.isActive,
+    required this.onTap,
+    required this.onClose,
+    required this.index,
+    required this.onReorder,
+  });
 
   @override
   State<_TabItem> createState() => _TabItemState();
@@ -212,6 +221,43 @@ class _TabItemState extends State<_TabItem> {
 
   @override
   Widget build(BuildContext context) {
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (DragTargetDetails<int> details) => details.data != widget.index,
+      onAcceptWithDetails: (DragTargetDetails<int> details) {
+        widget.onReorder(details.data, widget.index);
+      },
+      builder: (BuildContext context, List<int?> candidateData, List<dynamic> rejectedData) {
+        final bool isDropTarget = candidateData.isNotEmpty;
+
+        return Draggable<int>(
+          data: widget.index,
+          feedback: Material(
+            elevation: 8,
+            borderRadius: BorderRadius.circular(4),
+            child: Opacity(
+              opacity: 0.8,
+              child: _buildTabContent(context, isDragging: true),
+            ),
+          ),
+          childWhenDragging: Opacity(
+            opacity: 0.3,
+            child: _buildTabContent(context),
+          ),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              border: isDropTarget
+                  ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+                  : null,
+            ),
+            child: _buildTabContent(context),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTabContent(BuildContext context, {bool isDragging = false}) {
     return Listener(
       onPointerDown: (PointerDownEvent event) {
         // Middle mouse button has kMiddleMouseButton = 4
@@ -329,11 +375,16 @@ class _TabBar extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  for (final BaseTab tab in tabState.tabs)
+                  for (int index = 0; index < tabState.tabs.length; index++)
                     _TabItem(
-                      tab: tab,
-                      isActive: tab.id == tabState.activeTabId,
+                      tab: tabState.tabs[index],
+                      isActive: tabState.tabs[index].id == tabState.activeTabId,
+                      index: index,
+                      onReorder: (int oldIndex, int newIndex) {
+                        context.read<TabManagerBloc>().add(TabsReordered(oldIndex: oldIndex, newIndex: newIndex));
+                      },
                       onTap: () {
+                        final BaseTab tab = tabState.tabs[index];
                         // Switch to the tab
                         context.read<TabManagerBloc>().add(TabSwitched(tab.id));
 
@@ -371,6 +422,7 @@ class _TabBar extends StatelessWidget {
                         }
                       },
                       onClose: () {
+                        final BaseTab tab = tabState.tabs[index];
                         // If closing the active document tab, close the PDF viewer too
                         if (tab.id == tabState.activeTabId && tab is DocumentTab) {
                           final PdfViewerState currentState = context.read<PdfViewerBloc>().state;

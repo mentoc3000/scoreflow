@@ -79,3 +79,17 @@ class AllTabsClosed extends TabManagerEvent {
 class ConfigTabRequested extends TabManagerEvent {
   const ConfigTabRequested();
 }
+
+/// Event to reorder tabs
+class TabsReordered extends TabManagerEvent {
+  final int oldIndex;
+  final int newIndex;
+
+  const TabsReordered({
+    required this.oldIndex,
+    required this.newIndex,
+  });
+
+  @override
+  List<Object?> get props => [oldIndex, newIndex];
+}

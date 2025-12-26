@@ -22,6 +22,7 @@ class TabManagerBloc extends Bloc<TabManagerEvent, TabManagerState> {
     on<TabStateUpdated>(_onTabStateUpdated);
     on<AllTabsClosed>(_onAllTabsClosed);
     on<ConfigTabRequested>(_onConfigTabRequested);
+    on<TabsReordered>(_onTabsReordered);
   }
 
   /// Restores tabs from persistence on app startup
@@ -253,5 +254,26 @@ class TabManagerBloc extends Bloc<TabManagerEvent, TabManagerState> {
     // Create new config tab
     final ConfigTab configTab = ConfigTab.create();
     add(TabOpened(configTab));
+  }
+
+  /// Handles reordering tabs
+  Future<void> _onTabsReordered(TabsReordered event, Emitter<TabManagerState> emit) async {
+    if (state is TabManagerLoaded) {
+      final TabManagerLoaded currentState = state as TabManagerLoaded;
+
+      // Create a new list with the reordered tabs
+      final List<BaseTab> reorderedTabs = List.from(currentState.tabs);
+
+      // Remove the tab from the old position
+      final BaseTab movedTab = reorderedTabs.removeAt(event.oldIndex);
+
+      // Insert it at the new position
+      reorderedTabs.insert(event.newIndex, movedTab);
+
+      emit(currentState.copyWith(tabs: reorderedTabs));
+
+      // Persist the changes
+      await _persistenceRepository.saveTabs(reorderedTabs);
+    }
   }
 }
