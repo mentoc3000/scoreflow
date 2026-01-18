@@ -113,6 +113,20 @@ class _TabbedViewerContentState extends State<_TabbedViewerContent> {
   void initState() {
     super.initState();
     // Load the active tab's document when this screen first appears
+    _loadActiveTabDocument();
+  }
+
+  @override
+  void didUpdateWidget(_TabbedViewerContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // When the active tab changes, load the new tab's document
+    if (oldWidget.tabState.activeTabId != widget.tabState.activeTabId) {
+      _loadActiveTabDocument();
+    }
+  }
+
+  /// Loads the active tab's document and restores its state
+  void _loadActiveTabDocument() {
     // Only if it's not a home tab
     if (widget.tabState.activeTab != null && widget.tabState.activeTab is DocumentTab) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -133,30 +147,56 @@ class _TabbedViewerContentState extends State<_TabbedViewerContent> {
             if (!mounted) return;
             final PdfViewerState newState = context.read<PdfViewerBloc>().state;
             if (newState is PdfViewerLoaded) {
-              final TabState? savedState = widget.tabState.tabStates[docTab.id];
-              if (savedState != null) {
-                // Restore saved state
-                if (savedState.currentPage != 1) {
-                  context.read<PdfViewerBloc>().add(PageNumberChanged(savedState.currentPage));
-                }
-                if (savedState.zoomLevel != 1.0) {
-                  context.read<PdfViewerBloc>().add(ZoomChanged(savedState.zoomLevel));
-                }
-                if (savedState.isBookmarkSidebarOpen) {
-                  context.read<PdfViewerBloc>().add(const BookmarkSidebarToggled());
-                }
-                if (savedState.isDistractionFreeMode) {
-                  context.read<PdfViewerBloc>().add(const DistractionFreeModeToggled());
-                }
-              }
+              _restoreTabState(docTab.id, newState);
             }
           });
         } else if (pdfState is PdfViewerLoaded && pdfState.filePath != docTab.filePath) {
           // Different document is loaded, switch to active tab's document
           context.read<PdfViewerBloc>().add(RecentFileOpened(docTab.filePath));
+
+          // After loading, restore saved state
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (!mounted) return;
+            final PdfViewerState newState = context.read<PdfViewerBloc>().state;
+            if (newState is PdfViewerLoaded) {
+              _restoreTabState(docTab.id, newState);
+            }
+          });
+        } else if (pdfState is PdfViewerLoaded && pdfState.filePath == docTab.filePath) {
+          // Same document is already loaded, just restore the tab's saved state
+          _restoreTabState(docTab.id, pdfState);
         }
-        // If PdfViewerLoading or already loaded correct document, do nothing
+        // If PdfViewerLoading, do nothing - let it finish loading
       });
+    } else if (widget.tabState.activeTab is HomeTab) {
+      // Switching to home tab - close any open PDF
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final PdfViewerState pdfState = context.read<PdfViewerBloc>().state;
+        if (pdfState is PdfViewerLoaded) {
+          context.read<PdfViewerBloc>().add(const FileClosed());
+        }
+      });
+    }
+  }
+
+  /// Restores the saved state for a tab
+  void _restoreTabState(String tabId, PdfViewerLoaded currentState) {
+    final TabState? savedState = widget.tabState.tabStates[tabId];
+    if (savedState != null) {
+      // Restore saved state
+      if (savedState.currentPage != currentState.currentPage) {
+        context.read<PdfViewerBloc>().add(PageNumberChanged(savedState.currentPage));
+      }
+      if (savedState.zoomLevel != currentState.zoomLevel) {
+        context.read<PdfViewerBloc>().add(ZoomChanged(savedState.zoomLevel));
+      }
+      if (savedState.isBookmarkSidebarOpen != currentState.isBookmarkSidebarOpen) {
+        context.read<PdfViewerBloc>().add(const BookmarkSidebarToggled());
+      }
+      if (savedState.isDistractionFreeMode != currentState.isDistractionFreeMode) {
+        context.read<PdfViewerBloc>().add(const DistractionFreeModeToggled());
+      }
     }
   }
 
@@ -234,21 +274,13 @@ class _TabItemState extends State<_TabItem> {
           feedback: Material(
             elevation: 8,
             borderRadius: BorderRadius.circular(4),
-            child: Opacity(
-              opacity: 0.8,
-              child: _buildTabContent(context, isDragging: true),
-            ),
+            child: Opacity(opacity: 0.8, child: _buildTabContent(context, isDragging: true)),
           ),
-          childWhenDragging: Opacity(
-            opacity: 0.3,
-            child: _buildTabContent(context),
-          ),
+          childWhenDragging: Opacity(opacity: 0.3, child: _buildTabContent(context)),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             decoration: BoxDecoration(
-              border: isDropTarget
-                  ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
-                  : null,
+              border: isDropTarget ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2) : null,
             ),
             child: _buildTabContent(context),
           ),
@@ -363,9 +395,7 @@ class _TabBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outlineVariant, width: 1)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1)),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1))],
       ),
       child: Row(
         children: [
@@ -385,41 +415,9 @@ class _TabBar extends StatelessWidget {
                       },
                       onTap: () {
                         final BaseTab tab = tabState.tabs[index];
-                        // Switch to the tab
+                        // Switch to the tab - the didUpdateWidget in _TabbedViewerContentState
+                        // will handle loading the document and restoring state
                         context.read<TabManagerBloc>().add(TabSwitched(tab.id));
-
-                        // If it's a document tab, load the document
-                        if (tab is DocumentTab) {
-                          final PdfViewerState currentState = context.read<PdfViewerBloc>().state;
-                          // Only reload if it's a different document
-                          if (currentState is! PdfViewerLoaded || currentState.filePath != tab.filePath) {
-                            context.read<PdfViewerBloc>().add(RecentFileOpened(tab.filePath));
-                          } else {
-                            // Same document (currentState is PdfViewerLoaded), restore saved tab state
-                            final TabState? savedState = tabState.tabStates[tab.id];
-                            if (savedState != null) {
-                              // Restore page, zoom, sidebar state
-                              if (savedState.currentPage != currentState.currentPage) {
-                                context.read<PdfViewerBloc>().add(PageNumberChanged(savedState.currentPage));
-                              }
-                              if (savedState.zoomLevel != currentState.zoomLevel) {
-                                context.read<PdfViewerBloc>().add(ZoomChanged(savedState.zoomLevel));
-                              }
-                              if (savedState.isBookmarkSidebarOpen != currentState.isBookmarkSidebarOpen) {
-                                context.read<PdfViewerBloc>().add(const BookmarkSidebarToggled());
-                              }
-                              if (savedState.isDistractionFreeMode != currentState.isDistractionFreeMode) {
-                                context.read<PdfViewerBloc>().add(const DistractionFreeModeToggled());
-                              }
-                            }
-                          }
-                        } else if (tab is HomeTab) {
-                          // Close current document when switching to home tab
-                          final PdfViewerState currentState = context.read<PdfViewerBloc>().state;
-                          if (currentState is PdfViewerLoaded) {
-                            context.read<PdfViewerBloc>().add(const FileClosed());
-                          }
-                        }
                       },
                       onClose: () {
                         final BaseTab tab = tabState.tabs[index];
