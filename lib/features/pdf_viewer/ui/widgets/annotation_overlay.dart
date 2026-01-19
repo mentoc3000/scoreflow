@@ -33,17 +33,21 @@ class AnnotationOverlay extends StatelessWidget {
           onTapUp: state.isAddMode
               ? (details) => _onTapToAdd(context, details, state)
               : null,
-          child: Stack(
-            children: [
-              // Render each annotation
-              for (final annotation in pageAnnotations)
-                _AnnotationWidget(
-                  key: ValueKey(annotation.id),
-                  annotation: annotation,
-                  pageSize: pageSize,
-                  isSelected: state.selectedAnnotationId == annotation.id,
-                ),
-            ],
+          child: SizedBox(
+            width: pageSize.width,
+            height: pageSize.height,
+            child: Stack(
+              children: [
+                // Render each annotation
+                for (final annotation in pageAnnotations)
+                  _AnnotationWidget(
+                    key: ValueKey(annotation.id),
+                    annotation: annotation,
+                    pageSize: pageSize,
+                    isSelected: state.selectedAnnotationId == annotation.id,
+                  ),
+              ],
+            ),
           ),
         );
       },
