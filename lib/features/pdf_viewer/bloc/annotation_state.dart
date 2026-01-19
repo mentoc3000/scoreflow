@@ -66,10 +66,10 @@ class AnnotationState extends Equatable {
   List<Object?> get props => [
         pdfPath,
         annotations,
-        // Exclude UI-only state from equality comparison to prevent
+        isAddMode, // Include isAddMode so BlocBuilder rebuilds when it changes
+        // Exclude other UI-only state from equality comparison to prevent
         // unnecessary undo history entries:
         // - selectedAnnotationId: just UI selection, not data
-        // - isAddMode: temporary UI mode
         // - isSaving: temporary saving indicator
         // - isLoading: temporary loading indicator
         // - defaultFontSize: affects new annotations only, not existing data
